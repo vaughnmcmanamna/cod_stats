@@ -8,7 +8,7 @@ const config = {
     margin: { top: 30, right: 50, bottom: 50, left: 60 },
     width: () => window.innerWidth * 0.8,
     height: () => window.innerHeight * 0.6,
-    csvPath: "cod_stats.csv",
+    csvPath: "cod_stats1.csv",
     dotRadius: 4,
     dotRadiusHover: 6,
     transitionDuration: 500,

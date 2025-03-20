@@ -14,11 +14,10 @@ const config = {
     transitionDuration: 500,
     colors: {
         line: "#2563eb", // Blue line
-        dot: "#ef4444",  // Red dots
+        win: "#10b981",  // Green for wins
+        loss: "#ef4444", // Red for losses
         dotHover: "#f97316", // Orange on hover
-        positiveValue: "#10b981", // Green for good stats
-        negativeValue: "#ef4444", // Red for poor stats
-        neutralValue: "#6b7280"  // Gray for neutral stats
+        neutralValue: "#6b7280"  // Gray for draws or unknown
     },
     // Metrics to colorize based on value (higher is better)
     positiveMetrics: ["K/D Ratio", "EKIA/D Ratio", "Score Per Minute", "Accuracy %", "Skill"],
@@ -135,6 +134,9 @@ function createControls() {
         state.currentMetric = this.value;
         updateVisualization();
     });
+
+    addCorrelationButton();
+
 }
 
 // Show help modal
@@ -175,7 +177,7 @@ function showHelp() {
     const closeButton = document.createElement('button');
     closeButton.textContent = '✕';
     closeButton.style = `
-        position: absolute;
+        position: ;
         top: 10px;
         right: 15px;
         background: none;
@@ -195,7 +197,7 @@ function showHelp() {
     content.innerHTML = `
         <h3>Available Metrics</h3>
         <ul>
-            <li><strong>Skill</strong>: Your skill rating</li>
+            <li><strong>Skill</strong>: Your skill rating (how you well perform regardless of opponent strength)</li>
             <li><strong>K/D Ratio</strong>: Kills divided by deaths</li>
             <li><strong>EKIA/D Ratio</strong>: (Kills + Assists) divided by deaths</li>
             <li><strong>Score Per Minute</strong>: Average score earned per minute of gameplay</li>
@@ -221,11 +223,11 @@ function showHelp() {
         <p>Games with a score of 0 (bot games) are automatically filtered out.</p>
         
         <h3>Color Coding</h3>
-        <p>Some metrics are color-coded based on performance:
+        <p>Data points are color-coded based on match outcome:
         <ul>
-            <li><span style="color: #10b981;">Green</span>: Good performance</li>
-            <li><span style="color: #6b7280;">Gray</span>: Average performance</li>
-            <li><span style="color: #ef4444;">Red</span>: Below average performance</li>
+            <li><span style="color: #10b981;">Green</span>: Win</li>
+            <li><span style="color: #ef4444;">Red</span>: Loss</li>
+            <li><span style="color: #6b7280;">Gray</span>: Draw or unknown outcome</li>
         </ul>
     `;
     
@@ -245,6 +247,501 @@ function showHelp() {
         }
     });
 }
+
+// Add a new function to calculate correlations between metrics
+function calculateMetricCorrelations(data, primaryMetric) {
+
+    const metrics = Object.keys(data[0]).filter(key => {
+        // Filter for numeric fields, exclude date and categorical fields
+        return key !== config.dateField && 
+               key !== "Game Type" && 
+               typeof data[0][key] === 'number';
+    });
+    
+    // Calculate correlations between the primary metric and all other metrics
+    const correlations = [];
+    
+    metrics.forEach(metric => {
+        if (metric !== primaryMetric) {
+            // Get valid data points (both metrics have values)
+            const validData = data.filter(d => 
+                d[primaryMetric] !== undefined && 
+                !isNaN(d[primaryMetric]) && 
+                d[metric] !== undefined && 
+                !isNaN(d[metric])
+            );
+            
+            if (validData.length > 5) { // Need enough data points for correlation
+                const correlation = calculatePearsonCorrelation(
+                    validData.map(d => d[primaryMetric]),
+                    validData.map(d => d[metric])
+                );
+                
+                correlations.push({
+                    metric: metric,
+                    correlation: correlation,
+                    strength: getCorrelationStrength(correlation),
+                    direction: correlation > 0 ? 'positive' : 'negative'
+                });
+            }
+        }
+    });
+    
+    // Sort by absolute correlation value (strongest first)
+    correlations.sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation));
+    
+    return correlations;
+}
+
+// Calculate Pearson correlation coefficient
+function calculatePearsonCorrelation(x, y) {
+    const n = x.length;
+    
+    // Calculate means
+    const xMean = x.reduce((sum, val) => sum + val, 0) / n;
+    const yMean = y.reduce((sum, val) => sum + val, 0) / n;
+    
+    // Calculate covariance and standard deviations
+    let covariance = 0;
+    let xStdDev = 0;
+    let yStdDev = 0;
+    
+    for (let i = 0; i < n; i++) {
+        const xDiff = x[i] - xMean;
+        const yDiff = y[i] - yMean;
+        covariance += xDiff * yDiff;
+        xStdDev += xDiff * xDiff;
+        yStdDev += yDiff * yDiff;
+    }
+    
+    // Avoid division by zero
+    if (xStdDev === 0 || yStdDev === 0) return 0;
+    
+    // Calculate correlation coefficient
+    return covariance / (Math.sqrt(xStdDev) * Math.sqrt(yStdDev));
+}
+
+// Get textual description of correlation strength
+function getCorrelationStrength(correlation) {
+    const absCorrelation = Math.abs(correlation);
+    
+    if (absCorrelation >= 0.8) return 'Very strong';
+    if (absCorrelation >= 0.6) return 'Strong';
+    if (absCorrelation >= 0.4) return 'Moderate';
+    if (absCorrelation >= 0.2) return 'Weak';
+    return 'Very weak';
+}
+
+// Add function to create a correlation panel
+function createCorrelationPanel() {
+    // Check if we have data and a selected metric
+    if (!state.filteredData || state.filteredData.length === 0 || !state.currentMetric) {
+        return;
+    }
+    
+    // Calculate correlations for current metric
+    const correlations = calculateMetricCorrelations(state.filteredData, state.currentMetric);
+    
+    // Remove existing panel if present
+    d3.select('#correlation-panel').remove();
+    
+    // Create panel container
+    const panel = d3.select('body').append('div')
+        .attr('id', 'correlation-panel')
+        .style('position', 'absolute')
+        .style('top', '80px')
+        .style('right', '20px')
+        .style('width', '300px')
+        .style('background', 'white')
+        .style('border', '1px solid #ccc')
+        .style('border-radius', '5px')
+        .style('padding', '15px')
+        .style('box-shadow', '0 2px 10px rgba(0,0,0,0.1)')
+        .style('font-family', 'sans-serif')
+        .style('z-index', '1000');
+    
+    // Add header with close button
+    const headerDiv = panel.append('div')
+        .style('display', 'flex')
+        .style('justify-content', 'space-between')
+        .style('align-items', 'center')
+        .style('margin-bottom', '15px');
+    
+    headerDiv.append('h3')
+        .style('margin', '0')
+        .text(`Correlations with ${state.currentMetric}`);
+    
+    headerDiv.append('button')
+        .style('background', 'none')
+        .style('border', 'none')
+        .style('font-size', '16px')
+        .style('cursor', 'pointer')
+        .text('×')
+        .on('click', function() {
+            d3.select('#correlation-panel').remove();
+            
+            // Reset correlation button text
+            const correlationButton = document.getElementById('correlation-button');
+            if (correlationButton) {
+                correlationButton.textContent = 'View Correlations';
+            }
+        });
+    
+    panel.append('p')
+        .style('font-size', '14px')
+        .style('margin-bottom', '15px')
+        .text('How other metrics correlate with the currently selected metric:');
+    
+    // Add correlations list
+    const list = panel.append('div')
+        .style('max-height', '300px')
+        .style('overflow-y', 'auto');
+    
+    // Show message if no correlations found
+    if (correlations.length === 0) {
+        list.append('p')
+            .style('font-style', 'italic')
+            .text('Not enough data to calculate correlations.');
+        return;
+    }
+    
+    // Create a correlation item for each metric
+    correlations.forEach(corr => {
+        const item = list.append('div')
+            .style('padding', '8px 0')
+            .style('border-bottom', '1px solid #eee')
+            .style('display', 'flex')
+            .style('justify-content', 'space-between')
+            .style('align-items', 'center');
+        
+        // Metric name
+        item.append('div')
+            .style('font-weight', 'bold')
+            .text(corr.metric);
+        
+        // Correlation info
+        const infoDiv = item.append('div')
+            .style('text-align', 'right');
+        
+        // Direction icon
+        infoDiv.append('span')
+            .style('color', corr.direction === 'positive' ? 'green' : 'red')
+            .style('margin-right', '5px')
+            .text(corr.direction === 'positive' ? '↑' : '↓');
+        
+        // Correlation strength
+        infoDiv.append('span')
+            .text(`${corr.strength} (${corr.correlation.toFixed(2)})`);
+    });
+    
+    // Add toggle button to switch to scatter plot view
+    panel.append('button')
+        .style('margin-top', '15px')
+        .style('padding', '8px 12px')
+        .style('width', '100%')
+        .style('background', '#2563eb')
+        .style('color', 'white')
+        .style('border', 'none')
+        .style('border-radius', '4px')
+        .style('cursor', 'pointer')
+        .text('View Scatter Plot')
+        .on('click', showCorrelationScatterPlot);
+}
+
+// Function to switch to scatter plot view
+function showCorrelationScatterPlot() {
+    // Open a modal with the scatter plot options
+    const modal = d3.select('body').append('div')
+        .attr('class', 'correlation-modal')
+        .style('position', 'fixed')
+        .style('top', '0')
+        .style('left', '0')
+        .style('width', '100%')
+        .style('height', '100%')
+        .style('background-color', 'rgba(0, 0, 0, 0.5)')
+        .style('display', 'flex')
+        .style('justify-content', 'center')
+        .style('align-items', 'center')
+        .style('z-index', '1001');
+    
+    // Create modal content
+    const modalContent = modal.append('div')
+        .style('background-color', 'white')
+        .style('padding', '20px')
+        .style('border-radius', '8px')
+        .style('width', '90%')
+        .style('max-width', '800px')
+        .style('max-height', '90vh')
+        .style('overflow-y', 'auto');
+    
+    // Add close button
+    modalContent.append('button')
+        .style('position', '')
+        .style('right', '10px')
+        .style('top', '10px')
+        .style('background', 'none')
+        .style('border', 'none')
+        .style('font-size', '24px')
+        .style('cursor', 'pointer')
+        .text('×')
+        .on('click', () => modal.remove());
+    
+    // Add title
+    modalContent.append('h2')
+        .text('Metrics Correlation Scatter Plot');
+    
+    // Add metrics selector section
+    const selectorSection = modalContent.append('div')
+        .style('display', 'flex')
+        .style('gap', '20px')
+        .style('margin-bottom', '20px');
+    
+    // Get metrics for dropdown options
+    const metrics = Object.keys(state.filteredData[0]).filter(key => {
+        return key !== config.dateField && 
+               key !== "Game Type" && 
+               typeof state.filteredData[0][key] === 'number';
+    });
+    
+    // X-axis metric selector
+    const xAxisDiv = selectorSection.append('div');
+    xAxisDiv.append('label')
+        .attr('for', 'x-metric')
+        .style('display', 'block')
+        .style('margin-bottom', '5px')
+        .text('X-Axis Metric:');
+    
+    const xSelect = xAxisDiv.append('select')
+        .attr('id', 'x-metric')
+        .style('padding', '8px')
+        .style('border-radius', '4px');
+    
+    // Y-axis metric selector
+    const yAxisDiv = selectorSection.append('div');
+    yAxisDiv.append('label')
+        .attr('for', 'y-metric')
+        .style('display', 'block')
+        .style('margin-bottom', '5px')
+        .text('Y-Axis Metric:');
+    
+    const ySelect = yAxisDiv.append('select')
+        .attr('id', 'y-metric')
+        .style('padding', '8px')
+        .style('border-radius', '4px');
+    
+    // Add options to both selectors
+    metrics.forEach(metric => {
+        xSelect.append('option')
+            .attr('value', metric)
+            .text(metric)
+            .property('selected', metric === state.currentMetric);
+        
+        // For y-axis, select the most correlated metric by default
+        const correlations = calculateMetricCorrelations(state.filteredData, state.currentMetric);
+        const defaultYMetric = correlations.length > 0 ? correlations[0].metric : metrics[0];
+        
+        ySelect.append('option')
+            .attr('value', metric)
+            .text(metric)
+            .property('selected', metric === defaultYMetric);
+    });
+    
+    // Create container for the scatter plot
+    const plotContainer = modalContent.append('div')
+        .attr('id', 'scatter-plot-container')
+        .style('width', '100%')
+        .style('height', '500px')
+        .style('margin-top', '20px');
+    
+    // Initial plot creation
+    createScatterPlot(
+        xSelect.property('value'),
+        ySelect.property('value'),
+        plotContainer
+    );
+    
+    // Add event listeners to update the plot when selections change
+    xSelect.on('change', () => {
+        createScatterPlot(
+            xSelect.property('value'),
+            ySelect.property('value'),
+            plotContainer
+        );
+    });
+    
+    ySelect.on('change', () => {
+        createScatterPlot(
+            xSelect.property('value'),
+            ySelect.property('value'),
+            plotContainer
+        );
+    });
+}
+
+// Function to create the actual scatter plot
+function createScatterPlot(xMetric, yMetric, container) {
+    // Clear existing plot
+    container.html('');
+    
+    // Set up dimensions
+    const margin = { top: 40, right: 30, bottom: 60, left: 60 };
+    const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+    const height = container.node().getBoundingClientRect().height - margin.top - margin.bottom;
+    
+    // Filter data for valid points
+    const validData = state.filteredData.filter(d => 
+        d[xMetric] !== undefined && !isNaN(d[xMetric]) &&
+        d[yMetric] !== undefined && !isNaN(d[yMetric])
+    );
+    
+    // Create SVG
+    const svg = container.append('svg')
+        .attr('width', width + margin.left + margin.right)
+        .attr('height', height + margin.top + margin.bottom)
+        .append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+    
+    // Create scales
+    const xScale = d3.scaleLinear()
+        .domain([
+            d3.min(validData, d => d[xMetric]) * 0.9, 
+            d3.max(validData, d => d[xMetric]) * 1.1
+        ])
+        .range([0, width]);
+    
+    const yScale = d3.scaleLinear()
+        .domain([
+            d3.min(validData, d => d[yMetric]) * 0.9, 
+            d3.max(validData, d => d[yMetric]) * 1.1
+        ])
+        .range([height, 0]);
+    
+    // Add axes
+    svg.append('g')
+        .attr('transform', `translate(0,${height})`)
+        .call(d3.axisBottom(xScale));
+    
+    svg.append('g')
+        .call(d3.axisLeft(yScale));
+    
+    // Add axis labels
+    svg.append('text')
+        .attr('x', width / 2)
+        .attr('y', height + 40)
+        .style('text-anchor', 'middle')
+        .text(xMetric);
+    
+    svg.append('text')
+        .attr('transform', 'rotate(-90)')
+        .attr('x', -height / 2)
+        .attr('y', -40)
+        .style('text-anchor', 'middle')
+        .text(yMetric);
+    
+    // Calculate correlation
+    const correlation = calculatePearsonCorrelation(
+        validData.map(d => d[xMetric]),
+        validData.map(d => d[yMetric])
+    );
+    
+    // Add correlation info
+    svg.append('text')
+        .attr('x', width - 20)
+        .attr('y', 10)
+        .style('text-anchor', 'end')
+        .style('font-weight', 'bold')
+        .text(`Correlation: ${correlation.toFixed(2)}`);
+    
+    // Add regression line if correlation is significant
+    if (Math.abs(correlation) > 0.2) {
+        // Simple linear regression
+        const xMean = d3.mean(validData, d => d[xMetric]);
+        const yMean = d3.mean(validData, d => d[yMetric]);
+        
+        let numerator = 0;
+        let denominator = 0;
+        
+        validData.forEach(d => {
+            const xDiff = d[xMetric] - xMean;
+            numerator += xDiff * (d[yMetric] - yMean);
+            denominator += xDiff * xDiff;
+        });
+        
+        const slope = numerator / denominator;
+        const intercept = yMean - (slope * xMean);
+        
+        // Create the line
+        const line = d3.line()
+            .x(d => xScale(d))
+            .y(d => yScale(intercept + slope * d));
+        
+        // Add the line to the plot
+        const xDomain = xScale.domain();
+        svg.append('path')
+            .datum(xDomain)
+            .attr('fill', 'none')
+            .attr('stroke', '#2563eb')
+            .attr('stroke-width', 2)
+            .attr('stroke-dasharray', '5,5')
+            .attr('d', line);
+    }
+    
+    // Add scatter points
+    svg.selectAll('circle')
+        .data(validData)
+        .enter()
+        .append('circle')
+        .attr('cx', d => xScale(d[xMetric]))
+        .attr('cy', d => yScale(d[yMetric]))
+        .attr('r', 5)
+        .style('fill', d => {
+            if (d.isWin === true) {
+                return config.colors.win;
+            } else if (d.isWin === false) {
+                return config.colors.loss;
+            } else {
+                return config.colors.neutralValue;
+            }
+        })
+        .style('opacity', 0.7)
+        .style('stroke', '#fff')
+        .style('stroke-width', 1);
+}
+
+// Add a button to the controls to show correlations
+function addCorrelationButton() {
+    const controlsDiv = document.getElementById('controls');
+    
+    // Create a button container to match the styling
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style = 'display: flex; align-items: center;';
+    
+    // Create the button
+    const correlationButton = document.createElement('button');
+    correlationButton.id = 'correlation-button';
+    correlationButton.textContent = 'View Correlations';
+    correlationButton.style = 'padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background-color: #f3f4f6; cursor: pointer;';
+    correlationButton.addEventListener('click', function() {
+        // Check if correlation panel is already visible
+        const existingPanel = document.getElementById('correlation-panel');
+        if (existingPanel) {
+            // If already showing, remove it
+            existingPanel.remove();
+            correlationButton.textContent = 'View Correlations';
+        } else {
+            // Otherwise show it
+            createCorrelationPanel();
+            correlationButton.textContent = 'Hide Correlations';
+        }
+    });
+    
+    // Add the button to the container
+    buttonContainer.appendChild(correlationButton);
+    
+    // Add the container to controls
+    controlsDiv.appendChild(buttonContainer);
+}
+
 
 // Load data from CSV
 function loadData() {
@@ -275,33 +772,35 @@ function loadData() {
             // EKIA/D (Kills + Assists) / Deaths
             if (d.Deaths > 0) {
                 d["EKIA/D Ratio"] = parseFloat(((d.Kills + (d.Assists || 0)) / d.Deaths).toFixed(2));
+                d["EKIA"] = parseFloat(((d.Kills + (d.Assists || 0))));
             } else {
                 d["EKIA/D Ratio"] = (d.Kills + (d.Assists || 0)) > 0 ? 99 : 0; // Cap at 99
             }
+
             
-            // Average Score Per Minute (if Duration is in seconds)
-            if (d.Duration > 0 && d.Score) {
-                d["Score Per Minute"] = parseFloat(((d.Score / (d.Duration / 60))).toFixed(1));
-            }
             
             // Headshot Percentage
             if (d.Kills > 0 && d.Headshots !== undefined) {
                 d["Headshot %"] = parseFloat(((d.Headshots / d.Kills) * 100).toFixed(1));
             }
             
-            // Accuracy Percentage (if available)
-            if (d.Hits > 0 && d.Shots > 0) {
-                d["Accuracy %"] = parseFloat(((d.Hits / d.Shots) * 100).toFixed(1));
-            }
+            
             
             // Tag ranked modes (Hardpoint, Search and Destroy, Control)
             d.isRanked = ["Hardpoint", "Search and Destroy", "Control"].includes(d["Game Type"]);
+            
+            // Determine win/loss status using the "Match Outcome" column
+            if (d.hasOwnProperty("Match Outcome")) {
+                // Check if the value is "win" (case insensitive)
+                d.isWin = d["Match Outcome"].toLowerCase() === "win";
+            } 
+            d["Match Outcome"] = d.isWin === true ? 1 : d.isWin === false ? 0 : null;
+          
         });
         
         // Filter for dates after cutoff and remove bot games (score = 0)
         data = data.filter(d => 
-            d[config.dateField] >= config.cutoffDate && 
-            (d.Score === undefined || d.Score > 0)  // Keep only if Score is undefined or > 0
+            d[config.dateField] >= config.cutoffDate && d["Total XP"] > 0
         );
         
         // Sort by date
@@ -419,12 +918,22 @@ function filterData() {
 
 // Main function to update the visualization
 function updateVisualization() {
+    // Remove correlation panel when changing visualization
+    d3.select('#correlation-panel').remove();
+    
+    // Reset correlation button text if it exists
+    const correlationButton = document.getElementById('correlation-button');
+    if (correlationButton) {
+        correlationButton.textContent = 'View Correlations';
+    }
+    
     // Filter data
     state.filteredData = filterData();
     
     // Create or update chart
     createOrUpdateChart();
 }
+
 
 // Create or update the chart
 function createOrUpdateChart() {
@@ -446,30 +955,30 @@ function createOrUpdateChart() {
         d3.timeDay.offset(maxDate, 2)
     ];
     
-            // Get metric domain with padding
+    // Get metric domain with padding
     const minValue = d3.min(data, d => d[state.currentMetric]);
     const maxValue = d3.max(data, d => d[state.currentMetric]);
     
     // Special handling for ratio metrics - use reasonable ranges
     let valueRange;
     
-    if (state.currentMetric.includes("Ratio") || state.currentMetric.includes("K/D") || state.currentMetric.includes("EKIA")) {
+    if (state.currentMetric.includes("Ratio") || state.currentMetric.includes("K/D") || state.currentMetric.includes("EKIA/D")) {
         // For ratio metrics, use a more sensible range
         valueRange = [
             0, // Always start at 0
-            Math.min(5, maxValue * 1.1) // Cap at 5 or actual max + 10%
+            Math.min(10, maxValue * 1.3) // Cap at 10 or actual max + 30%
         ];
     } else if (state.currentMetric.includes("%")) {
         // For percentage metrics
         valueRange = [
             0, // Start at 0
-            Math.min(100, maxValue * 1.1) // Cap at 100 or actual max + 10%
+            Math.min(100, maxValue * 1.2) // Cap at 100 or actual max + 20%
         ];
     } else {
         // For other metrics
         valueRange = [
             Math.max(0, minValue * 0.9), // Lower bound, minimum of 0
-            maxValue * 1.1 // Upper bound with 10% padding
+            maxValue * 1.3 // Upper bound with 30% padding (increased from 10%)
         ];
     }
     
@@ -543,6 +1052,50 @@ function createOrUpdateChart() {
             .attr("y", -40)
             .attr("text-anchor", "middle");
             
+        // Add legend for win/loss colors
+        const legend = state.svg.append("g")
+            .attr("class", "legend")
+            .attr("transform", `translate(${width - 150}, 50)`);
+            
+        // Win indicator
+        legend.append("circle")
+            .attr("cx", 0)
+            .attr("cy", 0)
+            .attr("r", 6)
+            .style("fill", config.colors.win);
+            
+        legend.append("text")
+            .attr("x", 15)
+            .attr("y", 4)
+            .style("font-size", "12px")
+            .text("Win");
+            
+        // Loss indicator
+        legend.append("circle")
+            .attr("cx", 0)
+            .attr("cy", 20)
+            .attr("r", 6)
+            .style("fill", config.colors.loss);
+            
+        legend.append("text")
+            .attr("x", 15)
+            .attr("y", 24)
+            .style("font-size", "12px")
+            .text("Loss");
+            
+        // Unknown indicator
+        legend.append("circle")
+            .attr("cx", 0)
+            .attr("cy", 40)
+            .attr("r", 6)
+            .style("fill", config.colors.neutralValue);
+            
+        legend.append("text")
+            .attr("x", 15)
+            .attr("y", 44)
+            .style("font-size", "12px")
+            .text("Unknown");
+            
         // Setup zoom behavior
         setupZoom(width, height);
     } else {
@@ -608,19 +1161,13 @@ function createOrUpdateChart() {
         .attr("cy", d => yScale(d[state.currentMetric]))
         .attr("r", 0)
         .style("fill", d => {
-            // Color dots based on metric value
-            if (config.positiveMetrics.includes(state.currentMetric)) {
-                // For positive metrics (higher is better), scale color from neutral to positive
-                const normalizedValue = Math.min(1, d[state.currentMetric] / 3); // Cap at 3.0 for normalization
-                return normalizedValue > 0.6 ? config.colors.positiveValue : 
-                       normalizedValue > 0.3 ? config.colors.neutralValue : 
-                       config.colors.negativeValue;
-            } else if (config.negativeMetrics.includes(state.currentMetric)) {
-                // For negative metrics (lower is better)
-                return d[state.currentMetric] > 15 ? config.colors.negativeValue : config.colors.neutralValue;
+            // Color dots based on win/loss status
+            if (d.isWin === true) {
+                return config.colors.win; // Green for wins
+            } else if (d.isWin === false) {
+                return config.colors.loss; // Red for losses
             } else {
-                // Default color for other metrics
-                return config.colors.dot;
+                return config.colors.neutralValue; // Gray for unknown
             }
         })
         .style("opacity", 0.7)
@@ -634,7 +1181,17 @@ function createOrUpdateChart() {
     dots.transition()
         .duration(config.transitionDuration)
         .attr("cx", d => xScale(d[config.dateField]))
-        .attr("cy", d => yScale(d[state.currentMetric]));
+        .attr("cy", d => yScale(d[state.currentMetric]))
+        .style("fill", d => {
+            // Color dots based on win/loss status
+            if (d.isWin === true) {
+                return config.colors.win; // Green for wins
+            } else if (d.isWin === false) {
+                return config.colors.loss; // Red for losses
+            } else {
+                return config.colors.neutralValue; // Gray for unknown
+            }
+        });
         
     // Exit selection
     dots.exit()
@@ -647,7 +1204,7 @@ function createOrUpdateChart() {
 // Set up zoom behavior
 function setupZoom(width, height) {
     const zoom = d3.zoom()
-        .scaleExtent([0.5, 100])
+        .scaleExtent([0.5, 500])
         .translateExtent([[-width * 0.2, -height * 0.2], [width * 1.2, height * 1.2]])
         .on("start", () => { state.isZooming = true; })
         .on("zoom", handleZoom)
@@ -683,7 +1240,7 @@ function handleZoom(event) {
         .attr("cx", d => newXScale(d[config.dateField]));
 }
 
-// Handle point mouseover
+// Modify the handlePointMouseOver function to create a static tooltip
 function handlePointMouseOver(event, d) {
     // Skip during active zooming for performance
     if (state.isZooming) return;
@@ -704,7 +1261,8 @@ function handlePointMouseOver(event, d) {
     let tooltipContent = [
         `${state.currentMetric}: ${d[state.currentMetric].toFixed(1)}`,
         `Date: ${formattedDate}`,
-        `Game Type: ${d["Game Type"]}`
+        `Game Type: ${d["Game Type"]}`,
+        `Result: ${d.isWin === true ? "Win" : d.isWin === false ? "Loss" : "Unknown"}`
     ];
     
     // Add more stats if they exist
@@ -724,73 +1282,89 @@ function handlePointMouseOver(event, d) {
         additionalContent.push(`EKIA: ${d.Kills + (d.Assists || 0)} / D: ${d.Deaths}`);
     }
     
+    // Show team scores if available
+    if (d["Team Score"] !== undefined && d["Enemy Score"] !== undefined) {
+        additionalContent.push(`Score: ${d["Team Score"]} - ${d["Enemy Score"]}`);
+    }
+    
     // Calculate how tall the tooltip needs to be
     const totalLines = tooltipContent.length + additionalContent.length;
     const tooltipHeight = 15 + (totalLines * 18);
     const tooltipWidth = 200;
     
-    // Add tooltip
+    // Remove any existing tooltip
+    state.chartGroup.selectAll(".tooltip").remove();
+    
+    // Get dimensions for positioning at top-right
+    const width = config.width() - config.margin.left - config.margin.right;
+    
+    // Add tooltip in static position (top right)
     const tooltip = state.chartGroup.append("g")
         .attr("class", "tooltip")
-        .attr("transform", `translate(${state.isZooming ? 
-            event.transform.applyX(state.xScale(d[config.dateField])) : 
-            state.xScale(d[config.dateField])},${state.yScale(d[state.currentMetric]) - 10})`);
+        .attr("transform", `translate(${width - tooltipWidth - 300}, 10)`); // Position at top right with 20px margin
             
     // Background rectangle
     tooltip.append("rect")
-        .attr("x", 10)
-        .attr("y", -45)
+        .attr("x", 0)
+        .attr("y", 0)
         .attr("width", tooltipWidth)
         .attr("height", tooltipHeight)
-        .attr("rx", 5)
+        .attr("rx", 5) // Rounded corners
+        .attr("ry", 5)
         .style("fill", "white")
         .style("stroke", "#ccc")
+        .style("stroke-width", 1)
         .style("opacity", 0.9);
     
-    // Add primary content
+    // Add main content
     tooltipContent.forEach((text, i) => {
         tooltip.append("text")
-            .attr("x", 20)
-            .attr("y", -25 + (i * 18))
+            .attr("x", 10)
+            .attr("y", 20 + (i * 18))
             .style("font-size", "12px")
-            .style("font-weight", "bold")
-            .style("fill", "#333")
             .text(text);
     });
     
-    // Add additional stats with a lighter style
+    // Add additional content
     additionalContent.forEach((text, i) => {
         tooltip.append("text")
-            .attr("x", 20)
-            .attr("y", -25 + ((i + tooltipContent.length) * 18))
+            .attr("x", 10)
+            .attr("y", 20 + ((tooltipContent.length + i) * 18))
             .style("font-size", "12px")
-            .style("fill", "#666")
             .text(text);
     });
 }
 
-// Handle point mouseout
-function handlePointMouseOut() {
+// Update the handlePointMouseOut function
+function handlePointMouseOut(event, d) {
     // Skip during active zooming for performance
     if (state.isZooming) return;
     
-    // Reset point style
+    // Reset point appearance
     d3.select(this).transition()
-        .duration(100)
+        .duration(200)
         .attr("r", config.dotRadius)
-        .style("fill", config.colors.dot);
-        
-    // Remove tooltip
+        .style("fill", d => {
+            if (d.isWin === true) {
+                return config.colors.win;
+            } else if (d.isWin === false) {
+                return config.colors.loss;
+            } else {
+                return config.colors.neutralValue;
+            }
+        });
+    
+    
+    
     state.chartGroup.selectAll(".tooltip").remove();
+    
 }
 
-// Handle window resize
 function resizeChart() {
-    if (state.svg) {
-        updateVisualization();
-    }
+    // Update visualization
+    updateVisualization();
+    
 }
-
 // Utility function for debouncing
 function debounce(func, wait) {
     let timeout;

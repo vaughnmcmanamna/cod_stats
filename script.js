@@ -82,7 +82,7 @@ let state = {
     filteredData: null, // Data after filtering
     currentGamemode: config.defaultGamemode,
     currentMetric: config.defaultMetric,
-    currentMap: "all", // Add currentMap to state
+    currentMap: "all", // Add currentMap to statPercentage Of Time Movinge
     svg: null,
     chartGroup: null,
     xScale: null,
@@ -102,6 +102,7 @@ const includedMetrics = [
     "Score",
     "Damage Done",
     "Damage Taken",
+    "Percentage Of Time Moving"
 ];
 // Initialize the visualization system
 function initVisualization() {
@@ -871,12 +872,18 @@ function loadData() {
             
             // Convert numeric fields
             for (let key in d) {
-                if (key !== config.dateField && !isNaN(d[key]) && d[key].trim() !== "") {
-                    d[key] = +d[key];
+                 if (typeof d[key] === "string") {
+                    let value = d[key].trim();
+
+                    if (key == "Percentage Of Time Moving") {
+                        d[key] = parseFloat(value.replace("%", ""));
+                    }
+                    // Convert other numeric fields
+                    if (key !== config.dateField && !isNaN(value) && value !== "") {
+                        d[key] = +value;
+                    }
                 }
             }
-            
-            // Calculate derived metrics
             
             // K/D (Kill/Death Ratio)
             if (d.Deaths > 0) {
@@ -908,7 +915,7 @@ function loadData() {
                 d.isWin = d["Match Outcome"].toLowerCase() === "win";
             } 
             d["Match Outcome"] = d.isWin === true ? 1 : d.isWin === false ? 0 : null;
-    
+
         });
         
         // Filter for dates after cutoff and remove bot games (score = 0)
@@ -941,6 +948,7 @@ function populateControls(data) {
     const uniqueGameModes = [...new Set(data.map(d => d["Game Type"]))].filter(mode => includedGameModes.includes(mode));
     const gameModes = [
         { value: "all", label: "All Game Modes" },
+        { value: "ranked", label: "Ranked Only" },  // Add ranked option
         ...uniqueGameModes.map(mode => ({ value: mode, label: mode }))
     ];
     
@@ -958,7 +966,7 @@ function populateControls(data) {
         return key !== config.dateField && 
                key !== "Game Type" && 
                key !== "Map" && 
-               typeof sampleRow[key] === 'number';
+               typeof sampleRow[key] === 'number' || key === "Percentage of Time Moving";
     });
     
     // Populate gamemode selector
@@ -996,7 +1004,7 @@ function populateControls(data) {
     // Define preferred order for metrics
     const preferredMetrics = [
         "Skill", "Match Outcome", "K/D Ratio", "Kills", "EKIA/D Ratio", "EKIA", "Deaths", "Damage Done", "Damage Taken",
-        "Assists", "Score", "Headshot %", "Accuracy %"
+        "Assists", "Score", "Headshot %", "Accuracy %", "Percentage Of Time Moving"
     ];
     
     // Sort metrics with preferred ones first
@@ -1031,6 +1039,9 @@ function filterData() {
         if (state.currentGamemode === "all") {
             // Include all game modes
             gameModeMatch = true;
+        } else if (state.currentGamemode === "ranked") {
+            // For ranked, include only Hardpoint, Search and Destroy, and Control
+            gameModeMatch = ["Hardpoint", "Control", "Search and Destroy"].includes(d["Game Type"]);
         } else {
             // For specific game mode selection
             gameModeMatch = d["Game Type"] === state.currentGamemode;
@@ -1228,25 +1239,12 @@ function createOrUpdateChart() {
             .style("font-size", "12px")
             .text("Loss");
             
-        // Unknown indicator
-        legend.append("circle")
-            .attr("cx", 0)
-            .attr("cy", 40)
-            .attr("r", 6)
-            .style("fill", config.colors.neutralValue);
-            
-        legend.append("text")
-            .attr("x", 15)
-            .attr("y", 44)
-            .style("font-size", "12px")
-            .text("Unknown");
-            
         // Add average value indicator with dashed line
         legend.append("line")
             .attr("x1", -10)
-            .attr("y1", 60)
+            .attr("y1", 40)
             .attr("x2", 10)
-            .attr("y2", 60)
+            .attr("y2", 40)
             .style("stroke", "grey")
             .style("stroke-dasharray", "4,4")
             .style("stroke-width", 2);
@@ -1254,9 +1252,9 @@ function createOrUpdateChart() {
         legend.append("text")
             .attr("class", "average-legend")
             .attr("x", 14)
-            .attr("y", 64)
+            .attr("y", 43)
             .style("font-size", "12px")
-            .style("font-weight", "bold");
+            .style("font-weight", "normal");
             
         // Setup zoom behavior
         setupZoom(width, height);

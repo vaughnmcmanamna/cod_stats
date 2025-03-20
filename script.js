@@ -1269,7 +1269,6 @@ function createOrUpdateChart() {
             .attr("width", width)
             .attr("height", height);
     }
-    
     // Update chart title
     state.svg.select(".chart-title")
         .text(`${state.currentMetric} Over Time${state.currentGamemode !== "all" ? ` (${state.currentGamemode})` : ''}`);

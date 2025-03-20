@@ -10,27 +10,79 @@ const config = {
     height: () => window.innerHeight * 0.6,
     csvPath: "cod_stats1.csv",
     dotRadius: 4,
-    dotRadiusHover: 6,
-    transitionDuration: 500,
+    dotRadiusHover: 10,
+    transitionDuration: 200,
     colors: {
         line: "#2563eb", // Blue line
         win: "#10b981",  // Green for wins
         loss: "#ef4444", // Red for losses
-        dotHover: "#f97316", // Orange on hover
+        dotHover: "purple", // Purple on hover
         neutralValue: "#6b7280"  // Gray for draws or unknown
     },
-    // Metrics to colorize based on value (higher is better)
-    positiveMetrics: ["K/D Ratio", "EKIA/D Ratio", "Score Per Minute", "Accuracy %", "Skill"],
-    // Metrics where lower is better
-    negativeMetrics: ["Deaths"]
 };
+const correlationExplanationText = `
+    <h2>Understanding Correlation</h2>
+    <p>Correlation measures how strongly two variables are related, ranging from -1 to 1. <br>
+    A higher value indicates a stronger relationship (values were changed to reflect team-based game):</p>
+    <ul>
+        <li><strong>0.5 to 1:</strong> Strong correlation</li>
+        <li><strong>0.3 to 0.5:</strong> Moderate correlation</li>
+        <li><strong>0 to 0.3:</strong> Weak correlation</li>
+    </ul>
+    <p>A negative correlation means that as one variable increases, the other tends to decrease. For example, if the correlation between "K/D" and "Win" is -0.3, it suggests that higher K/D may be associated with slightly lower chances of winning, possibly due to focusing more on kills than objectives.</p>
+    <p>If /the correlation between "Damage Done" and "Win" is 0.4, it means that dealing more damage is moderately associated with winning the game.</p>
+    <button id="close-correlation-explanation" style="padding: 8px 12px; border: none; border-radius: 4px; background-color: #2563eb; color: white; cursor: pointer;">Got it!</button>
+`;
 
-// Chart state
+function showCorrelationExplanation() {
+    // Create modal container
+    const modal = document.createElement('div');
+    modal.id = 'correlation-explanation-modal';
+    modal.style = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    `;
+    
+    // Create modal content
+    const modalContent = document.createElement('div');
+    modalContent.style = `
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        width: 80%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        position: relative;
+    `;
+    modalContent.innerHTML = correlationExplanationText;
+    
+    // Add modal content to modal
+    modal.appendChild(modalContent);
+    
+    // Add modal to document
+    document.body.appendChild(modal);
+    
+    // Add event listener to close button
+    document.getElementById('close-correlation-explanation').addEventListener('click', () => {
+        modal.remove();
+    });
+}
 let state = {
     data: null,        // The full dataset
     filteredData: null, // Data after filtering
     currentGamemode: config.defaultGamemode,
     currentMetric: config.defaultMetric,
+    currentMap: "all", // Add currentMap to state
     svg: null,
     chartGroup: null,
     xScale: null,
@@ -38,6 +90,19 @@ let state = {
     isZooming: false
 };
 
+const includedMetrics = [
+    "Skill",
+    "K/D Ratio",
+    "EKIA/D Ratio",
+    "Kills",
+    "EKIA",
+    "Deaths",
+    "Headshot %",
+    "Accuracy %",
+    "Score",
+    "Damage Done",
+    "Damage Taken",
+];
 // Initialize the visualization system
 function initVisualization() {
     // Create UI controls if they don't exist
@@ -50,7 +115,6 @@ function initVisualization() {
     window.addEventListener("resize", debounce(resizeChart, 250));
 }
 
-// Create or update the UI controls
 function createControls() {
     const controlsDiv = document.getElementById('controls') || document.createElement('div');
     if (!document.getElementById('controls')) {
@@ -94,6 +158,25 @@ function createControls() {
     gamemodeGroup.appendChild(gamemodeLabel);
     gamemodeGroup.appendChild(gamemodeSelector);
     
+    // Create control group for map
+    const mapGroup = document.createElement('div');
+    mapGroup.style = controlGroupStyle;
+    
+    // Add map selector
+    const mapSelector = document.createElement('select');
+    mapSelector.id = 'mapSelector';
+    mapSelector.style = controlStyle;
+    
+    // Will be populated with options once data is loaded
+    const mapLabel = document.createElement('label');
+    mapLabel.textContent = 'Map:';
+    mapLabel.setAttribute('for', 'mapSelector');
+    mapLabel.style = labelStyle;
+    
+    // Add elements to map group
+    mapGroup.appendChild(mapLabel);
+    mapGroup.appendChild(mapSelector);
+    
     // Create control group for metric
     const metricGroup = document.createElement('div');
     metricGroup.style = controlGroupStyle;
@@ -121,6 +204,7 @@ function createControls() {
     
     // Add groups to controls div
     controlsDiv.appendChild(gamemodeGroup);
+    controlsDiv.appendChild(mapGroup); // Add map group to controls
     controlsDiv.appendChild(metricGroup);
     controlsDiv.appendChild(helpButton);
     
@@ -130,13 +214,17 @@ function createControls() {
         updateVisualization();
     });
     
+    mapSelector.addEventListener('change', function() {
+        state.currentMap = this.value;
+        updateVisualization();
+    });
+    
     metricSelector.addEventListener('change', function() {
         state.currentMetric = this.value;
         updateVisualization();
     });
 
     addCorrelationButton();
-
 }
 
 // Show help modal
@@ -171,13 +259,14 @@ function showHelp() {
         max-height: 80vh;
         overflow-y: auto;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        position: relative;
     `;
     
     // Create close button
     const closeButton = document.createElement('button');
     closeButton.textContent = '✕';
     closeButton.style = `
-        position: ;
+        position: absolute;
         top: 10px;
         right: 15px;
         background: none;
@@ -247,22 +336,19 @@ function showHelp() {
         }
     });
 }
-
-// Add a new function to calculate correlations between metrics
 function calculateMetricCorrelations(data, primaryMetric) {
-
     const metrics = Object.keys(data[0]).filter(key => {
         // Filter for numeric fields, exclude date and categorical fields
         return key !== config.dateField && 
                key !== "Game Type" && 
                typeof data[0][key] === 'number';
     });
-    
+
     // Calculate correlations between the primary metric and all other metrics
     const correlations = [];
     
     metrics.forEach(metric => {
-        if (metric !== primaryMetric) {
+        if (metric !== primaryMetric && includedMetrics.includes(metric)) {
             // Get valid data points (both metrics have values)
             const validData = data.filter(d => 
                 d[primaryMetric] !== undefined && 
@@ -332,7 +418,6 @@ function getCorrelationStrength(correlation) {
     return 'Very weak';
 }
 
-// Add function to create a correlation panel
 function createCorrelationPanel() {
     // Check if we have data and a selected metric
     if (!state.filteredData || state.filteredData.length === 0 || !state.currentMetric) {
@@ -348,7 +433,7 @@ function createCorrelationPanel() {
     // Create panel container
     const panel = d3.select('body').append('div')
         .attr('id', 'correlation-panel')
-        .style('position', 'absolute')
+         .style('position', 'absolute')
         .style('top', '80px')
         .style('right', '20px')
         .style('width', '300px')
@@ -390,7 +475,8 @@ function createCorrelationPanel() {
     panel.append('p')
         .style('font-size', '14px')
         .style('margin-bottom', '15px')
-        .text('How other metrics correlate with the currently selected metric:');
+        .text('Correlation measures how strongly two variables are related:');
+
     
     // Add correlations list
     const list = panel.append('div')
@@ -447,7 +533,6 @@ function createCorrelationPanel() {
         .text('View Scatter Plot')
         .on('click', showCorrelationScatterPlot);
 }
-
 // Function to switch to scatter plot view
 function showCorrelationScatterPlot() {
     // Open a modal with the scatter plot options
@@ -472,11 +557,12 @@ function showCorrelationScatterPlot() {
         .style('width', '90%')
         .style('max-width', '800px')
         .style('max-height', '90vh')
-        .style('overflow-y', 'auto');
+        .style('overflow-y', 'auto')
+        .style('position', 'relative');
     
     // Add close button
     modalContent.append('button')
-        .style('position', '')
+        .style('position', 'absolute')
         .style('right', '10px')
         .style('top', '10px')
         .style('background', 'none')
@@ -494,7 +580,8 @@ function showCorrelationScatterPlot() {
     const selectorSection = modalContent.append('div')
         .style('display', 'flex')
         .style('gap', '20px')
-        .style('margin-bottom', '20px');
+        .style('margin-bottom', '20px')
+        .style('margin-top', '30px'); // Add space for the close button
     
     // Get metrics for dropdown options
     const metrics = Object.keys(state.filteredData[0]).filter(key => {
@@ -721,6 +808,10 @@ function addCorrelationButton() {
     correlationButton.id = 'correlation-button';
     correlationButton.textContent = 'View Correlations';
     correlationButton.style = 'padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background-color: #f3f4f6; cursor: pointer;';
+    
+    // Variable to track if the explanation has been shown
+    let explanationShown = false;
+    
     correlationButton.addEventListener('click', function() {
         // Check if correlation panel is already visible
         const existingPanel = document.getElementById('correlation-panel');
@@ -732,6 +823,12 @@ function addCorrelationButton() {
             // Otherwise show it
             createCorrelationPanel();
             correlationButton.textContent = 'Hide Correlations';
+            
+            // Show explanation modal if not shown yet
+            if (!explanationShown) {
+                showCorrelationExplanation();
+                explanationShown = true;
+            }
         }
     });
     
@@ -741,9 +838,28 @@ function addCorrelationButton() {
     // Add the container to controls
     controlsDiv.appendChild(buttonContainer);
 }
+function calculateWinLossCounts(data) {
+    let wins = 0;
+    let losses = 0;
 
+    data.forEach(d => {
+        if (d.isWin === true) {
+            wins++;
+        } else if (d.isWin === false) {
+            losses++;
+        }
+    });
 
-// Load data from CSV
+    return { wins, losses };
+}
+
+function calculateAverage(data, metric) {
+    const validData = data.filter(d => d[metric] !== undefined && !isNaN(d[metric]));
+    const sum = validData.reduce((acc, d) => acc + d[metric], 0);
+    return sum / validData.length;
+}
+
+// Load data from CSV (continuing the loadData function)
 function loadData() {
     d3.csv(config.csvPath).then(function(data) {
         // Parse dates and numeric values
@@ -772,19 +888,16 @@ function loadData() {
             // EKIA/D (Kills + Assists) / Deaths
             if (d.Deaths > 0) {
                 d["EKIA/D Ratio"] = parseFloat(((d.Kills + (d.Assists || 0)) / d.Deaths).toFixed(2));
-                d["EKIA"] = parseFloat(((d.Kills + (d.Assists || 0))));
+                d["EKIA"] = parseFloat(d.Kills + (d.Assists || 0));
             } else {
                 d["EKIA/D Ratio"] = (d.Kills + (d.Assists || 0)) > 0 ? 99 : 0; // Cap at 99
+                d["EKIA"] = parseFloat(d.Kills + (d.Assists || 0));
             }
-
-            
             
             // Headshot Percentage
             if (d.Kills > 0 && d.Headshots !== undefined) {
                 d["Headshot %"] = parseFloat(((d.Headshots / d.Kills) * 100).toFixed(1));
             }
-            
-            
             
             // Tag ranked modes (Hardpoint, Search and Destroy, Control)
             d.isRanked = ["Hardpoint", "Search and Destroy", "Control"].includes(d["Game Type"]);
@@ -795,7 +908,7 @@ function loadData() {
                 d.isWin = d["Match Outcome"].toLowerCase() === "win";
             } 
             d["Match Outcome"] = d.isWin === true ? 1 : d.isWin === false ? 0 : null;
-          
+    
         });
         
         // Filter for dates after cutoff and remove bot games (score = 0)
@@ -820,14 +933,22 @@ function loadData() {
     });
 }
 
-// Populate UI controls based on data
 function populateControls(data) {
-    // Get unique game modes and create the game modes array with special options first
-    const uniqueGameModes = [...new Set(data.map(d => d["Game Type"]))];
+    // Define the specific game modes to include
+    const includedGameModes = ["Hardpoint", "Control", "Search and Destroy"];
+    
+    // Get unique game modes and filter to include only the specified ones
+    const uniqueGameModes = [...new Set(data.map(d => d["Game Type"]))].filter(mode => includedGameModes.includes(mode));
     const gameModes = [
         { value: "all", label: "All Game Modes" },
-        { value: "ranked", label: "Ranked Only" },  // Add ranked option
         ...uniqueGameModes.map(mode => ({ value: mode, label: mode }))
+    ];
+    
+    // Get unique maps
+    const uniqueMaps = [...new Set(data.map(d => d["Map"]))];
+    const maps = [
+        { value: "all", label: "All Maps" },
+        ...uniqueMaps.map(map => ({ value: map, label: map }))
     ];
     
     // Get potential metrics (numeric columns only)
@@ -836,6 +957,7 @@ function populateControls(data) {
         // Filter for numeric fields, exclude date and categorical fields
         return key !== config.dateField && 
                key !== "Game Type" && 
+               key !== "Map" && 
                typeof sampleRow[key] === 'number';
     });
     
@@ -853,14 +975,28 @@ function populateControls(data) {
         gamemodeSelector.appendChild(option);
     });
     
+    // Populate map selector
+    const mapSelector = document.getElementById('mapSelector');
+    mapSelector.innerHTML = '';
+    
+    maps.forEach(map => {
+        const option = document.createElement('option');
+        option.value = map.value;
+        option.textContent = map.label;
+        if (map.value === state.currentMap) {
+            option.selected = true;
+        }
+        mapSelector.appendChild(option);
+    });
+    
     // Populate metric selector
     const metricSelector = document.getElementById('metricSelector');
     metricSelector.innerHTML = '';
     
     // Define preferred order for metrics
     const preferredMetrics = [
-        "Skill", "K/D Ratio", "EKIA/D Ratio", "Score Per Minute", 
-        "Kills", "Deaths", "Assists", "Score", "Headshot %", "Accuracy %"
+        "Skill", "Match Outcome", "K/D Ratio", "Kills", "EKIA/D Ratio", "EKIA", "Deaths", "Damage Done", "Damage Taken",
+        "Assists", "Score", "Headshot %", "Accuracy %"
     ];
     
     // Sort metrics with preferred ones first
@@ -885,7 +1021,6 @@ function populateControls(data) {
     });
 }
 
-// Filter data based on current state
 function filterData() {
     if (!state.data) return [];
     
@@ -896,13 +1031,13 @@ function filterData() {
         if (state.currentGamemode === "all") {
             // Include all game modes
             gameModeMatch = true;
-        } else if (state.currentGamemode === "ranked") {
-            // For ranked, include only Hardpoint, Search and Destroy, and Control
-            gameModeMatch = d.isRanked;
         } else {
             // For specific game mode selection
             gameModeMatch = d["Game Type"] === state.currentGamemode;
         }
+        
+        // Filter by map
+        let mapMatch = state.currentMap === "all" || d["Map"] === state.currentMap;
         
         // Filter for rows with valid metric values (check if the field exists and has a numeric value)
         const validMetric = d[state.currentMetric] !== undefined && !isNaN(d[state.currentMetric]);
@@ -912,7 +1047,7 @@ function filterData() {
             return false; 
         }
         
-        return gameModeMatch && validMetric;
+        return gameModeMatch && mapMatch && validMetric;
     });
 }
 
@@ -930,12 +1065,13 @@ function updateVisualization() {
     // Filter data
     state.filteredData = filterData();
     
+    // Calculate win/loss counts
+    const { wins, losses } = calculateWinLossCounts(state.filteredData);
+    
     // Create or update chart
     createOrUpdateChart();
 }
 
-
-// Create or update the chart
 function createOrUpdateChart() {
     const data = state.filteredData;
     if (!data || data.length === 0) {
@@ -1010,6 +1146,15 @@ function createOrUpdateChart() {
             .attr("y", 20)
             .attr("text-anchor", "middle")
             .style("font-size", "16px")
+            .style("font-weight", "bold");
+            
+        // Add win/loss counter
+        state.svg.append("text")
+            .attr("class", "win-loss-counter")
+            .attr("x", config.margin.left + width / 2)
+            .attr("y", 50) // Adjust this value to move the counter down
+            .attr("text-anchor", "middle")
+            .style("font-size", "14px")
             .style("font-weight", "bold");
             
         // Create main group for chart elements
@@ -1096,6 +1241,23 @@ function createOrUpdateChart() {
             .style("font-size", "12px")
             .text("Unknown");
             
+        // Add average value indicator with dashed line
+        legend.append("line")
+            .attr("x1", -10)
+            .attr("y1", 60)
+            .attr("x2", 10)
+            .attr("y2", 60)
+            .style("stroke", "grey")
+            .style("stroke-dasharray", "4,4")
+            .style("stroke-width", 2);
+            
+        legend.append("text")
+            .attr("class", "average-legend")
+            .attr("x", 14)
+            .attr("y", 64)
+            .style("font-size", "12px")
+            .style("font-weight", "bold");
+            
         // Setup zoom behavior
         setupZoom(width, height);
     } else {
@@ -1113,7 +1275,20 @@ function createOrUpdateChart() {
     // Update chart title
     state.svg.select(".chart-title")
         .text(`${state.currentMetric} Over Time${state.currentGamemode !== "all" ? ` (${state.currentGamemode})` : ''}`);
-        
+    
+    // Update win/loss counter
+    const { wins, losses } = calculateWinLossCounts(state.filteredData);
+    state.svg.select(".win-loss-counter")
+        .text(`Wins: ${wins}`)  // Set text for wins
+        .append("tspan")
+        .attr("x", config.margin.left + width / 2)
+        .attr("dy", "1.3em")
+        .text(`Losses: ${losses}`)  // Set text for losses
+        .append("tspan")
+        .attr("x", config.margin.left + width / 2)
+        .attr("dy", "1.2em")
+        .text(`Ratio: ${(wins / (wins + losses) * 100).toFixed(1)}%`);  // Set text for ratio
+
     // Update y-axis label
     state.chartGroup.select(".y-axis-label")
         .text(state.currentMetric);
@@ -1199,6 +1374,25 @@ function createOrUpdateChart() {
         .duration(config.transitionDuration)
         .attr("r", 0)
         .remove();
+    
+    // Calculate and add average line
+    const averageValue = calculateAverage(data, state.currentMetric);
+    state.chartGroup.selectAll(".average-line").remove(); // Remove existing average line if any
+    
+    // Add visible average line
+    state.chartGroup.append("line")
+        .attr("class", "average-line")
+        .attr("x1", 0)
+        .attr("y1", yScale(averageValue))
+        .attr("x2", width)
+        .attr("y2", yScale(averageValue))
+        .style("stroke", "grey")
+        .style("stroke-dasharray", "4,4")
+        .style("stroke-width", 2);
+    
+    // Update average value in legend
+    state.svg.select(".average-legend")
+        .text(`Average: ${averageValue.toFixed(2)}`);
 }
 
 // Set up zoom behavior
@@ -1295,13 +1489,13 @@ function handlePointMouseOver(event, d) {
     // Remove any existing tooltip
     state.chartGroup.selectAll(".tooltip").remove();
     
-    // Get dimensions for positioning at top-right
-    const width = config.width() - config.margin.left - config.margin.right;
+    // Get mouse coordinates
+    const [mouseX, mouseY] = d3.pointer(event);
     
-    // Add tooltip in static position (top right)
+    // Add tooltip at mouse position with offset
     const tooltip = state.chartGroup.append("g")
         .attr("class", "tooltip")
-        .attr("transform", `translate(${width - tooltipWidth - 300}, 10)`); // Position at top right with 20px margin
+        .attr("transform", `translate(${mouseX + 10}, ${mouseY - tooltipHeight - 10})`); // Position with offset
             
     // Background rectangle
     tooltip.append("rect")
@@ -1354,17 +1548,15 @@ function handlePointMouseOut(event, d) {
             }
         });
     
-    
-    
+    // Remove tooltip
     state.chartGroup.selectAll(".tooltip").remove();
-    
 }
 
 function resizeChart() {
     // Update visualization
     updateVisualization();
-    
 }
+
 // Utility function for debouncing
 function debounce(func, wait) {
     let timeout;

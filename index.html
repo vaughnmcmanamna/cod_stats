@@ -3,15 +3,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>D3.js Dynamic Stats</title>
-    <script src="d3.js"></script>
-    <link rel="stylesheet" href="styles.css">
-    
+    <title>COD Stats Tracker</title>
+    <script src="d3.js"></script>    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            animation: slideDown 0.6s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            align-items: flex-end;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.9);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        select, button {
+            padding: 12px 18px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            font-family: inherit;
+        }
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 40px;
+        }
+
+        select:hover, button:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        select:focus, button:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        select option {
+            background-color: #1a1a2e;
+            color: #ffffff;
+        }
+
+        select option:hover,
+        select option:checked {
+            background-color: #667eea;
+            color: #ffffff;
+        }
+
+
+        button {
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            white-space: nowrap;
+        }
+
+        .help-modal ul {
+            padding-left: 20px;
+        }
+
+        
+
+        svg {
+            display: block;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+        }
+
+        .tooltip {
+            pointer-events: none;
+        }
+
+        .tooltip rect {
+            fill: #141428 !important;
+            opacity: 1 !important;
+        }
+
+        .tooltip text {
+            fill: #ffffff !important;
+            opacity: 1 !important;
+        }
+
+
+        .chart-title { font-size: 22px; font-weight: 600; fill: #fff; }
+        .win-loss-counter { fill: rgba(255, 255, 255, 0.85); font-size: 14px; }
+        .x-axis text, .y-axis text { fill: rgba(255, 255, 255, 0.7); font-size: 11px; }
+        .x-axis path, .y-axis path, .x-axis line, .y-axis line { stroke: rgba(255, 255, 255, 0.2); }
+        .x-axis-label, .y-axis-label { fill: rgba(255, 255, 255, 0.85); font-size: 13px; font-weight: 500; }
+        .line-path { filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.6)); }
+        .data-point { cursor: pointer; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)); }
+        .tooltip rect { fill: rgba(20, 20, 40, 0.95); stroke: rgba(102, 126, 234, 0.5); stroke-width: 2; }
+        .tooltip text { fill: #fff; font-size: 12px; }
+        .legend text { fill: rgba(255, 255, 255, 0.9); font-size: 13px; }
+        .average-line { stroke: rgba(156, 163, 175, 0.6); stroke-dasharray: 5, 5; }
+
+        #correlation-panel {
+            background: rgba(20, 20, 40, 0.95) !important;
+            border: 1px solid rgba(102, 126, 234, 0.3) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .help-modal, .correlation-modal, #correlation-explanation-modal {
+            backdrop-filter: blur(8px);
+        }
+
+        .help-modal > div, .correlation-modal > div, #correlation-explanation-modal > div {
+            background: rgba(20, 20, 40, 0.95) !important;
+            color: #fff !important;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .help-modal ul,
+        .correlation-modal ul,
+        #correlation-explanation-modal ul {
+            padding-left: 20px;
+        }
+
+
+        #correlation-panel text {
+            fill: #ffffff !important;
+        }
+
+        svg text {
+            fill: rgba(255, 255, 255, 0.85) !important;
+        }
+
+
+
+
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            #controls { flex-direction: column; }
+            .control-group { width: 100%; min-width: unset; }
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <header>
+            <h1>🎮 COD Stats Dashboard</h1>
+            <p class="subtitle">Track your performance and dominate the battlefield</p>
+        </header>
+        
+    </div>
 
-    <h1>COD Stats for: username</h1>
-    <!-- The div for the D3 chart -->
     <script src="script.js"></script>
 </body>
 </html>

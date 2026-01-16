@@ -30,7 +30,7 @@ const correlationExplanationText = `
         <li><strong>0 to 0.3:</strong> Weak correlation</li>
     </ul>
     <p>A negative correlation means that as one variable increases, the other tends to decrease. For example, if the correlation between "K/D" and "Win" is -0.3, it suggests that higher K/D may be associated with slightly lower chances of winning, possibly due to focusing more on kills than objectives.</p>
-    <p>If /the correlation between "Damage Done" and "Win" is 0.4, it means that dealing more damage is moderately associated with winning the game.</p>
+    <p>If the correlation between "Damage Done" and "Win" is 0.4, it means that dealing more damage is moderately associated with winning the game.</p>
     <button id="close-correlation-explanation" style="padding: 8px 12px; border: none; border-radius: 4px; background-color: #2563eb; color: white; cursor: pointer;">Got it!</button>
 `;
 
@@ -280,7 +280,7 @@ function showHelp() {
     // Add title
     const title = document.createElement('h2');
     title.textContent = 'Game Statistics Visualization Help';
-    title.style = 'margin-top: 0; color: #111;';
+    title.style = 'margin-top: 0; color: white;';
     
     // Add content
     const content = document.createElement('div');

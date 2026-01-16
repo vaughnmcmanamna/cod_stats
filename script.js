@@ -6,32 +6,32 @@ const config = {
     dateFormat: "%Y-%m-%d %H:%M",
     cutoffDate: new Date(2024, 11, 1), // December 1, 2024
     margin: { top: 30, right: 50, bottom: 50, left: 60 },
-    width: () => window.innerWidth * 0.8,
-    height: () => window.innerHeight * 0.6,
+    width: () => Math.min(window.innerWidth * 0.9, 900),  // Max 900px wide
+    height: () => Math.min(window.innerHeight * 0.7, 700), // Max 700px tall
     csvPath: "cod_stats1.csv",
     dotRadius: 4,
     dotRadiusHover: 10,
     transitionDuration: 200,
     colors: {
-        line: "#2563eb", // Blue line
-        win: "#10b981",  // Green for wins
-        loss: "#ef4444", // Red for losses
-        dotHover: "purple", // Purple on hover
+        line: "#8b8b8b", // Gray line so it's distinct from green wins
+        win: "#37c593",  // Notion green for wins
+        loss: "#eb5757", // Notion red for losses
+        dotHover: "#ffffff", // White on hover
         neutralValue: "#6b7280"  // Gray for draws or unknown
     },
 };
 const correlationExplanationText = `
-    <h2>Understanding Correlation</h2>
-    <p>Correlation measures how strongly two variables are related, ranging from -1 to 1. <br>
+    <h2 style="margin-top: 0; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid rgba(102, 126, 234, 0.3);">Understanding Correlation</h2>
+    <p style="margin-bottom: 15px; line-height: 1.7;">Correlation measures how strongly two variables are related, ranging from -1 to 1. <br>
     A higher value indicates a stronger relationship (values were changed to reflect team-based game):</p>
-    <ul>
-        <li><strong>0.5 to 1:</strong> Strong correlation</li>
-        <li><strong>0.3 to 0.5:</strong> Moderate correlation</li>
-        <li><strong>0 to 0.3:</strong> Weak correlation</li>
+    <ul style="padding-left: 25px; margin-bottom: 20px;">
+        <li style="margin-bottom: 10px; line-height: 1.6;"><strong>0.5 to 1:</strong> Strong correlation</li>
+        <li style="margin-bottom: 10px; line-height: 1.6;"><strong>0.3 to 0.5:</strong> Moderate correlation</li>
+        <li style="margin-bottom: 10px; line-height: 1.6;"><strong>0 to 0.3:</strong> Weak correlation</li>
     </ul>
-    <p>A negative correlation means that as one variable increases, the other tends to decrease. For example, if the correlation between "K/D" and "Win" is -0.3, it suggests that higher K/D may be associated with slightly lower chances of winning, possibly due to focusing more on kills than objectives.</p>
-    <p>If the correlation between "Damage Done" and "Win" is 0.4, it means that dealing more damage is moderately associated with winning the game.</p>
-    <button id="close-correlation-explanation" style="padding: 8px 12px; border: none; border-radius: 4px; background-color: #2563eb; color: white; cursor: pointer;">Got it!</button>
+    <p style="margin-bottom: 15px; line-height: 1.7;">A negative correlation means that as one variable increases, the other tends to decrease. For example, if the correlation between "K/D" and "Win" is -0.3, it suggests that higher K/D may be associated with slightly lower chances of winning, possibly due to focusing more on kills than objectives.</p>
+    <p style="margin-bottom: 20px; line-height: 1.7;">If the correlation between "Damage Done" and "Win" is 0.4, it means that dealing more damage is moderately associated with winning the game.</p>
+    <button id="close-correlation-explanation" style="padding: 10px 16px; border: none; border-radius: 6px; background-color: #37c593; color: #000000; cursor: pointer; font-size: 14px; font-weight: 600;">Got it!</button>
 `;
 
 function showCorrelationExplanation() {
@@ -55,7 +55,7 @@ function showCorrelationExplanation() {
     const modalContent = document.createElement('div');
     modalContent.style = `
         background-color: white;
-        padding: 20px;
+        padding: 30px;
         border-radius: 8px;
         width: 80%;
         max-width: 600px;
@@ -63,6 +63,7 @@ function showCorrelationExplanation() {
         overflow-y: auto;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         position: relative;
+        line-height: 1.6;
     `;
     modalContent.innerHTML = correlationExplanationText;
     
@@ -82,7 +83,7 @@ let state = {
     filteredData: null, // Data after filtering
     currentGamemode: config.defaultGamemode,
     currentMetric: config.defaultMetric,
-    currentMap: "all", // Add currentMap to statPercentage Of Time Movinge
+    currentMap: "all", // Add currentMap to state
     svg: null,
     chartGroup: null,
     xScale: null,
@@ -132,7 +133,7 @@ function createControls() {
     controlsDiv.innerHTML = '';
     
     // Style for all control groups
-    const controlGroupStyle = 'display: flex; align-items: center; gap: 8px;';
+    const controlGroupStyle = 'display: flex; flex-direction: column; gap: 8px;';
     
     // Style for all controls
     const controlStyle = 'padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;';
@@ -142,6 +143,7 @@ function createControls() {
     
     // Create control group for gamemode
     const gamemodeGroup = document.createElement('div');
+    gamemodeGroup.className = 'control-group';
     gamemodeGroup.style = controlGroupStyle;
     
     // Add gamemode selector
@@ -161,6 +163,7 @@ function createControls() {
     
     // Create control group for map
     const mapGroup = document.createElement('div');
+    mapGroup.className = 'control-group';
     mapGroup.style = controlGroupStyle;
     
     // Add map selector
@@ -180,6 +183,7 @@ function createControls() {
     
     // Create control group for metric
     const metricGroup = document.createElement('div');
+    metricGroup.className = 'control-group';
     metricGroup.style = controlGroupStyle;
     
     // Add metric selector
@@ -253,7 +257,7 @@ function showHelp() {
     const modalContent = document.createElement('div');
     modalContent.style = `
         background-color: white;
-        padding: 20px;
+        padding: 30px;
         border-radius: 8px;
         width: 80%;
         max-width: 600px;
@@ -261,6 +265,7 @@ function showHelp() {
         overflow-y: auto;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         position: relative;
+        line-height: 1.6;
     `;
     
     // Create close button
@@ -268,56 +273,58 @@ function showHelp() {
     closeButton.textContent = '✕';
     closeButton.style = `
         position: absolute;
-        top: 10px;
-        right: 15px;
+        top: 15px;
+        right: 20px;
         background: none;
         border: none;
-        font-size: 20px;
+        font-size: 24px;
         cursor: pointer;
+        color: rgba(255, 255, 255, 0.7);
     `;
     closeButton.addEventListener('click', () => modal.remove());
     
     // Add title
     const title = document.createElement('h2');
     title.textContent = 'Game Statistics Visualization Help';
-    title.style = 'margin-top: 0; color: white;';
+    title.style = 'margin-top: 0; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.2); color: white;';
     
     // Add content
     const content = document.createElement('div');
+    content.style = 'line-height: 1.7;';
     content.innerHTML = `
-        <h3>Available Metrics</h3>
-        <ul>
-            <li><strong>Skill</strong>: Your skill rating (how you well perform regardless of opponent strength)</li>
-            <li><strong>K/D Ratio</strong>: Kills divided by deaths</li>
-            <li><strong>EKIA/D Ratio</strong>: (Kills + Assists) divided by deaths</li>
-            <li><strong>Score Per Minute</strong>: Average score earned per minute of gameplay</li>
-            <li><strong>Headshot %</strong>: Percentage of kills that were headshots</li>
-            <li><strong>Accuracy %</strong>: Percentage of shots that hit targets</li>
+        <h3 style="margin-top: 25px; margin-bottom: 15px; color: rgba(255, 255, 255, 0.95);">Available Metrics</h3>
+        <ul style="padding-left: 25px; margin-bottom: 20px;">
+            <li style="margin-bottom: 10px;"><strong>Skill</strong>: Your skill rating (how you well perform regardless of opponent strength)</li>
+            <li style="margin-bottom: 10px;"><strong>K/D Ratio</strong>: Kills divided by deaths</li>
+            <li style="margin-bottom: 10px;"><strong>EKIA/D Ratio</strong>: (Kills + Assists) divided by deaths</li>
+            <li style="margin-bottom: 10px;"><strong>Score Per Minute</strong>: Average score earned per minute of gameplay</li>
+            <li style="margin-bottom: 10px;"><strong>Headshot %</strong>: Percentage of kills that were headshots</li>
+            <li style="margin-bottom: 10px;"><strong>Accuracy %</strong>: Percentage of shots that hit targets</li>
         </ul>
         
-        <h3>Game Modes</h3>
-        <ul>
-            <li><strong>All Game Modes</strong>: Shows data from all game types</li>
-            <li><strong>Ranked Only</strong>: Shows only Hardpoint, Search and Destroy, and Control matches</li>
-            <li><strong>Specific Mode</strong>: Select a specific game type from the dropdown</li>
+        <h3 style="margin-top: 25px; margin-bottom: 15px; color: rgba(255, 255, 255, 0.95);">Game Modes</h3>
+        <ul style="padding-left: 25px; margin-bottom: 20px;">
+            <li style="margin-bottom: 10px;"><strong>All Game Modes</strong>: Shows data from all game types</li>
+            <li style="margin-bottom: 10px;"><strong>Ranked Only</strong>: Shows only Hardpoint, Search and Destroy, and Control matches</li>
+            <li style="margin-bottom: 10px;"><strong>Specific Mode</strong>: Select a specific game type from the dropdown</li>
         </ul>
         
-        <h3>Chart Controls</h3>
-        <ul>
-            <li><strong>Zoom</strong>: Use the mouse wheel to zoom in and out</li>
-            <li><strong>Pan</strong>: Click and drag to move around</li>
-            <li><strong>Hover</strong>: Mouse over data points to see detailed information</li>
+        <h3 style="margin-top: 25px; margin-bottom: 15px; color: rgba(255, 255, 255, 0.95);">Chart Controls</h3>
+        <ul style="padding-left: 25px; margin-bottom: 20px;">
+            <li style="margin-bottom: 10px;"><strong>Zoom</strong>: Use the mouse wheel to zoom in and out</li>
+            <li style="margin-bottom: 10px;"><strong>Pan</strong>: Click and drag to move around</li>
+            <li style="margin-bottom: 10px;"><strong>Hover</strong>: Mouse over data points to see detailed information</li>
         </ul>
         
-        <h3>Data Filtering</h3>
-        <p>Games with a score of 0 (bot games) are automatically filtered out.</p>
+        <h3 style="margin-top: 25px; margin-bottom: 15px; color: rgba(255, 255, 255, 0.95);">Data Filtering</h3>
+        <p style="margin-bottom: 15px; line-height: 1.7;">Games with a score of 0 (bot games) are automatically filtered out.</p>
         
-        <h3>Color Coding</h3>
-        <p>Data points are color-coded based on match outcome:
-        <ul>
-            <li><span style="color: #10b981;">Green</span>: Win</li>
-            <li><span style="color: #ef4444;">Red</span>: Loss</li>
-            <li><span style="color: #6b7280;">Gray</span>: Draw or unknown outcome</li>
+        <h3 style="margin-top: 25px; margin-bottom: 15px; color: rgba(255, 255, 255, 0.95);">Color Coding</h3>
+        <p style="margin-bottom: 10px; line-height: 1.7;">Data points are color-coded based on match outcome:</p>
+        <ul style="padding-left: 25px; margin-bottom: 20px;">
+            <li style="margin-bottom: 10px;"><span style="color: #10b981; font-weight: bold;">Green</span>: Win</li>
+            <li style="margin-bottom: 10px;"><span style="color: #ef4444; font-weight: bold;">Red</span>: Loss</li>
+            <li style="margin-bottom: 10px;"><span style="color: #6b7280; font-weight: bold;">Gray</span>: Draw or unknown outcome</li>
         </ul>
     `;
     
@@ -434,15 +441,15 @@ function createCorrelationPanel() {
     // Create panel container
     const panel = d3.select('body').append('div')
         .attr('id', 'correlation-panel')
-         .style('position', 'absolute')
+        .style('position', 'absolute')
         .style('top', '80px')
         .style('right', '20px')
-        .style('width', '300px')
-        .style('background', 'white')
-        .style('border', '1px solid #ccc')
-        .style('border-radius', '5px')
-        .style('padding', '15px')
-        .style('box-shadow', '0 2px 10px rgba(0,0,0,0.1)')
+        .style('width', '350px')
+        .style('background', '#1f1f1f')
+        .style('border', '1px solid #2f2f2f')
+        .style('border-radius', '8px')
+        .style('padding', '20px')
+        .style('box-shadow', '0 4px 16px rgba(0, 0, 0, 0.3)')
         .style('font-family', 'sans-serif')
         .style('z-index', '1000');
     
@@ -451,17 +458,19 @@ function createCorrelationPanel() {
         .style('display', 'flex')
         .style('justify-content', 'space-between')
         .style('align-items', 'center')
-        .style('margin-bottom', '15px');
+        .style('margin-bottom', '20px');
     
     headerDiv.append('h3')
         .style('margin', '0')
+        .style('font-size', '18px')
         .text(`Correlations with ${state.currentMetric}`);
     
     headerDiv.append('button')
         .style('background', 'none')
         .style('border', 'none')
-        .style('font-size', '16px')
+        .style('font-size', '20px')
         .style('cursor', 'pointer')
+        .style('color', '#fff')
         .text('×')
         .on('click', function() {
             d3.select('#correlation-panel').remove();
@@ -475,19 +484,21 @@ function createCorrelationPanel() {
     
     panel.append('p')
         .style('font-size', '14px')
-        .style('margin-bottom', '15px')
+        .style('margin-bottom', '20px')
+        .style('line-height', '1.6')
         .text('Correlation measures how strongly two variables are related:');
 
     
     // Add correlations list
     const list = panel.append('div')
-        .style('max-height', '300px')
+        .style('max-height', '350px')
         .style('overflow-y', 'auto');
     
     // Show message if no correlations found
     if (correlations.length === 0) {
         list.append('p')
             .style('font-style', 'italic')
+            .style('padding', '15px 0')
             .text('Not enough data to calculate correlations.');
         return;
     }
@@ -495,42 +506,50 @@ function createCorrelationPanel() {
     // Create a correlation item for each metric
     correlations.forEach(corr => {
         const item = list.append('div')
-            .style('padding', '8px 0')
-            .style('border-bottom', '1px solid #eee')
+            .style('padding', '12px 0')
+            .style('border-bottom', '1px solid #2f2f2f')
             .style('display', 'flex')
             .style('justify-content', 'space-between')
-            .style('align-items', 'center');
+            .style('align-items', 'center')
+            .style('gap', '15px');
         
         // Metric name
         item.append('div')
             .style('font-weight', 'bold')
+            .style('font-size', '14px')
+            .style('flex', '1')
             .text(corr.metric);
         
         // Correlation info
         const infoDiv = item.append('div')
-            .style('text-align', 'right');
+            .style('text-align', 'right')
+            .style('white-space', 'nowrap');
         
         // Direction icon
         infoDiv.append('span')
-            .style('color', corr.direction === 'positive' ? 'green' : 'red')
-            .style('margin-right', '5px')
+            .style('color', corr.direction === 'positive' ? '#37c593' : '#eb5757')
+            .style('margin-right', '8px')
+            .style('font-size', '16px')
             .text(corr.direction === 'positive' ? '↑' : '↓');
         
         // Correlation strength
         infoDiv.append('span')
+            .style('font-size', '13px')
             .text(`${corr.strength} (${corr.correlation.toFixed(2)})`);
     });
     
     // Add toggle button to switch to scatter plot view
     panel.append('button')
-        .style('margin-top', '15px')
-        .style('padding', '8px 12px')
+        .style('margin-top', '20px')
+        .style('padding', '10px 16px')
         .style('width', '100%')
-        .style('background', '#2563eb')
-        .style('color', 'white')
+        .style('background', '#37c593')
+        .style('color', '#000000')
         .style('border', 'none')
-        .style('border-radius', '4px')
+        .style('border-radius', '6px')
         .style('cursor', 'pointer')
+        .style('font-size', '14px')
+        .style('font-weight', '600')
         .text('View Scatter Plot')
         .on('click', showCorrelationScatterPlot);
 }
@@ -553,7 +572,7 @@ function showCorrelationScatterPlot() {
     // Create modal content
     const modalContent = modal.append('div')
         .style('background-color', 'white')
-        .style('padding', '20px')
+        .style('padding', '30px')
         .style('border-radius', '8px')
         .style('width', '90%')
         .style('max-width', '800px')
@@ -564,25 +583,30 @@ function showCorrelationScatterPlot() {
     // Add close button
     modalContent.append('button')
         .style('position', 'absolute')
-        .style('right', '10px')
-        .style('top', '10px')
+        .style('right', '15px')
+        .style('top', '15px')
         .style('background', 'none')
         .style('border', 'none')
-        .style('font-size', '24px')
+        .style('font-size', '28px')
         .style('cursor', 'pointer')
+        .style('color', 'rgba(255, 255, 255, 0.7)')
         .text('×')
         .on('click', () => modal.remove());
     
     // Add title
     modalContent.append('h2')
+        .style('margin-top', '0')
+        .style('margin-bottom', '25px')
+        .style('padding-bottom', '15px')
+        .style('border-bottom', '1px solid rgba(255, 255, 255, 0.2)')
         .text('Metrics Correlation Scatter Plot');
     
     // Add metrics selector section
     const selectorSection = modalContent.append('div')
         .style('display', 'flex')
         .style('gap', '20px')
-        .style('margin-bottom', '20px')
-        .style('margin-top', '30px'); // Add space for the close button
+        .style('margin-bottom', '25px')
+        .style('flex-wrap', 'wrap');
     
     // Get metrics for dropdown options
     const metrics = Object.keys(state.filteredData[0]).filter(key => {
@@ -592,30 +616,46 @@ function showCorrelationScatterPlot() {
     });
     
     // X-axis metric selector
-    const xAxisDiv = selectorSection.append('div');
+    const xAxisDiv = selectorSection.append('div')
+        .style('flex', '1')
+        .style('min-width', '200px');
     xAxisDiv.append('label')
         .attr('for', 'x-metric')
         .style('display', 'block')
-        .style('margin-bottom', '5px')
+        .style('margin-bottom', '8px')
+        .style('font-weight', '600')
+        .style('font-size', '14px')
         .text('X-Axis Metric:');
     
     const xSelect = xAxisDiv.append('select')
         .attr('id', 'x-metric')
-        .style('padding', '8px')
-        .style('border-radius', '4px');
+        .style('padding', '10px 12px')
+        .style('border-radius', '6px')
+        .style('width', '100%')
+        .style('border', '1px solid rgba(255, 255, 255, 0.2)')
+        .style('background', 'rgba(255, 255, 255, 0.08)')
+        .style('color', '#fff');
     
     // Y-axis metric selector
-    const yAxisDiv = selectorSection.append('div');
+    const yAxisDiv = selectorSection.append('div')
+        .style('flex', '1')
+        .style('min-width', '200px');
     yAxisDiv.append('label')
         .attr('for', 'y-metric')
         .style('display', 'block')
-        .style('margin-bottom', '5px')
+        .style('margin-bottom', '8px')
+        .style('font-weight', '600')
+        .style('font-size', '14px')
         .text('Y-Axis Metric:');
     
     const ySelect = yAxisDiv.append('select')
         .attr('id', 'y-metric')
-        .style('padding', '8px')
-        .style('border-radius', '4px');
+        .style('padding', '10px 12px')
+        .style('border-radius', '6px')
+        .style('width', '100%')
+        .style('border', '1px solid rgba(255, 255, 255, 0.2)')
+        .style('background', 'rgba(255, 255, 255, 0.08)')
+        .style('color', '#fff');
     
     // Add options to both selectors
     metrics.forEach(metric => {
@@ -768,7 +808,7 @@ function createScatterPlot(xMetric, yMetric, container) {
         svg.append('path')
             .datum(xDomain)
             .attr('fill', 'none')
-            .attr('stroke', '#2563eb')
+            .attr('stroke', '#37c593')
             .attr('stroke-width', 2)
             .attr('stroke-dasharray', '5,5')
             .attr('d', line);
@@ -800,15 +840,10 @@ function createScatterPlot(xMetric, yMetric, container) {
 function addCorrelationButton() {
     const controlsDiv = document.getElementById('controls');
     
-    // Create a button container to match the styling
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style = 'display: flex; align-items: center;';
-    
     // Create the button
     const correlationButton = document.createElement('button');
     correlationButton.id = 'correlation-button';
     correlationButton.textContent = 'View Correlations';
-    correlationButton.style = 'padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background-color: #f3f4f6; cursor: pointer;';
     
     // Variable to track if the explanation has been shown
     let explanationShown = false;
@@ -833,11 +868,8 @@ function addCorrelationButton() {
         }
     });
     
-    // Add the button to the container
-    buttonContainer.appendChild(correlationButton);
-    
-    // Add the container to controls
-    controlsDiv.appendChild(buttonContainer);
+    // Add the button to controls
+    controlsDiv.appendChild(correlationButton);
 }
 function calculateWinLossCounts(data) {
     let wins = 0;
@@ -1074,13 +1106,57 @@ function updateVisualization() {
     }
     
     // Filter data
+    const oldDataLength = state.filteredData ? state.filteredData.length : 0;
     state.filteredData = filterData();
     
-    // Calculate win/loss counts
-    const { wins, losses } = calculateWinLossCounts(state.filteredData);
+    // Only update stats summary if data actually changed
+    if (state.filteredData.length !== oldDataLength) {
+        updateStatsSummary();
+    }
     
     // Create or update chart
     createOrUpdateChart();
+}
+
+// Function to update stats summary cards
+function updateStatsSummary() {
+    const data = state.filteredData;
+    if (!data || data.length === 0) return;
+    
+    const { wins, losses } = calculateWinLossCounts(data);
+    const totalGames = wins + losses;
+    const winRate = totalGames > 0 ? (wins / totalGames * 100).toFixed(1) : 0;
+    const avgMetric = calculateAverage(data, state.currentMetric);
+    
+    const summaryContainer = document.getElementById('statsSummary');
+    if (!summaryContainer) return;
+    
+    // Remove loading state
+    const loadingDiv = document.querySelector('.loading');
+    if (loadingDiv) loadingDiv.remove();
+    
+    summaryContainer.innerHTML = `
+        <div class="stat-card">
+            <div class="stat-label">Total Games</div>
+            <div class="stat-value">${totalGames}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Wins</div>
+            <div class="stat-value positive">${wins}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Losses</div>
+            <div class="stat-value negative">${losses}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Win Rate</div>
+            <div class="stat-value ${winRate >= 50 ? 'positive' : 'negative'}">${winRate}%</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Avg ${state.currentMetric}</div>
+            <div class="stat-value">${avgMetric.toFixed(2)}</div>
+        </div>
+    `;
 }
 
 function createOrUpdateChart() {
@@ -1142,9 +1218,11 @@ function createOrUpdateChart() {
     state.xScale = xScale;
     state.yScale = yScale;
     
-    // Create or select SVG
+    // Create or select SVG - now target chart-container
+    const chartContainer = d3.select('.chart-container');
+    
     if (!state.svg) {
-        state.svg = d3.select("body").append("svg")
+        state.svg = chartContainer.append("svg")
             .attr("width", width + config.margin.left + config.margin.right)
             .attr("height", height + config.margin.top + config.margin.bottom)
             .style("display", "block")
@@ -1419,14 +1497,16 @@ function handleZoom(event) {
     // Update clipped elements using the new scale
     const clippedGroup = state.chartGroup.select(".clipped-elements");
     
-    // Update line
+    // Update line path
+    const lineData = d3.line()
+        .x(d => newXScale(d[config.dateField]))
+        .y(d => state.yScale(d[state.currentMetric]))
+        .curve(d3.curveMonotoneX);
+    
     clippedGroup.select(".line-path")
-        .attr("d", d3.line()
-            .x(d => newXScale(d[config.dateField]))
-            .y(d => state.yScale(d[state.currentMetric]))
-            .curve(d3.curveMonotoneX)(state.filteredData));
+        .attr("d", lineData(state.filteredData));
             
-    // Update dots directly for better performance
+    // Update dots positions only (no transitions during zoom for performance)
     clippedGroup.selectAll(".data-point")
         .attr("cx", d => newXScale(d[config.dateField]));
 }
@@ -1438,10 +1518,8 @@ function handlePointMouseOver(event, d) {
     
     const point = d3.select(this);
     
-    // Highlight point
-    point.transition()
-        .duration(100)
-        .attr("r", config.dotRadiusHover)
+    // Highlight point with no transition for immediate feedback
+    point.attr("r", config.dotRadiusHover)
         .style("fill", config.colors.dotHover);
         
     // Format date
@@ -1531,9 +1609,8 @@ function handlePointMouseOut(event, d) {
     // Skip during active zooming for performance
     if (state.isZooming) return;
     
-    // Reset point appearance
-    d3.select(this).transition()
-        .duration(200)
+    // Reset point appearance immediately (no transition)
+    d3.select(this)
         .attr("r", config.dotRadius)
         .style("fill", d => {
             if (d.isWin === true) {

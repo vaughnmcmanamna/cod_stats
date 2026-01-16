@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>COD Stats Tracker</title>
-    <script src="d3.js"></script>    <style>
+    <script src="d3.js"></script>
+    <style>
         * {
             margin: 0;
             padding: 0;
@@ -13,10 +14,10 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            background: #191919;
             min-height: 100vh;
             color: #fff;
-            padding: 20px;
+            padding: 0;
             position: relative;
             overflow-x: hidden;
         }
@@ -28,74 +29,112 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-image: 
-                radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+            background: #191919;
             pointer-events: none;
             z-index: 0;
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
             position: relative;
             z-index: 1;
+            padding: 0 20px;
         }
 
         header {
             text-align: center;
+            padding: 20px 20px 15px 20px;
+            background: #1f1f1f;
+            border-bottom: 1px solid #2f2f2f;
+            box-shadow: none;
             margin-bottom: 30px;
-            padding: 30px 20px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            animation: slideDown 0.6s ease-out;
-        }
-
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
+            position: relative;
+            z-index: 100;
         }
 
         h1 {
-            font-size: 2.8rem;
+            font-size: 2.2rem;
             font-weight: 700;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 10px;
+            color: #ffffff;
+            margin-bottom: 5px;
             letter-spacing: -0.5px;
         }
 
         .subtitle {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.95rem;
             font-weight: 300;
         }
 
+        /* Stats summary cards */
+        .stats-summary {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: #1f1f1f;
+            border: 1px solid #2f2f2f;
+            border-radius: 8px;
+            padding: 20px 30px;
+            min-width: 180px;
+            text-align: center;
+            box-shadow: none;
+        }
+
+        .stat-card:hover {
+            background: #242424;
+            border-color: #3f3f3f;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .stat-value.positive {
+            color: #37c593;
+        }
+
+        .stat-value.negative {
+            color: #eb5757;
+        }
+
+        /* Centered controls */
         #controls {
             display: flex;
             flex-wrap: wrap;
             gap: 15px;
-            margin-bottom: 30px;
+            margin: 0 auto 30px auto;
             padding: 25px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #1f1f1f;
+            border-radius: 8px;
+            border: 1px solid #2f2f2f;
             align-items: flex-end;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+            justify-content: center;
+            box-shadow: none;
+            max-width: fit-content;
         }
 
         .control-group {
             display: flex;
             flex-direction: column;
             gap: 8px;
-            flex: 1;
-            min-width: 150px;
+            min-width: 180px;
         }
 
         .control-group label {
@@ -114,7 +153,6 @@
             background: rgba(255, 255, 255, 0.08);
             color: #fff;
             cursor: pointer;
-            transition: all 0.3s ease;
             backdrop-filter: blur(5px);
             font-family: inherit;
         }
@@ -128,47 +166,48 @@
         }
 
         select:hover, button:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            background: #242424;
+            border-color: #3f3f3f;
         }
 
         select:focus, button:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+            border-color: #37c593;
         }
 
         select option {
-            background-color: #1a1a2e;
+            background-color: #1f1f1f;
             color: #ffffff;
         }
-
-        select option:hover,
-        select option:checked {
-            background-color: #667eea;
-            color: #ffffff;
-        }
-
 
         button {
             font-weight: 600;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #37c593;
             border: none;
             white-space: nowrap;
+            min-width: 160px;
+            color: #000000;
         }
 
-        .help-modal ul {
-            padding-left: 20px;
+        button:hover {
+            background: #2fb380;
         }
 
-        
+        /* Chart container */
+        .chart-container {
+            background: #1f1f1f;
+            border-radius: 8px;
+            padding: 30px;
+            border: 1px solid #2f2f2f;
+            box-shadow: none;
+            max-width: fit-content;
+            margin: 0 auto;
+        }
 
         svg {
             display: block;
             margin: 0 auto;
-            background: rgba(255, 255, 255, 0.02);
+            background: transparent;
             border-radius: 12px;
         }
 
@@ -186,23 +225,87 @@
             opacity: 1 !important;
         }
 
-
-        .chart-title { font-size: 22px; font-weight: 600; fill: #fff; }
-        .win-loss-counter { fill: rgba(255, 255, 255, 0.85); font-size: 14px; }
-        .x-axis text, .y-axis text { fill: rgba(255, 255, 255, 0.7); font-size: 11px; }
-        .x-axis path, .y-axis path, .x-axis line, .y-axis line { stroke: rgba(255, 255, 255, 0.2); }
-        .x-axis-label, .y-axis-label { fill: rgba(255, 255, 255, 0.85); font-size: 13px; font-weight: 500; }
-        .line-path { filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.6)); }
-        .data-point { cursor: pointer; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)); }
-        .tooltip rect { fill: rgba(20, 20, 40, 0.95); stroke: rgba(102, 126, 234, 0.5); stroke-width: 2; }
-        .tooltip text { fill: #fff; font-size: 12px; }
-        .legend text { fill: rgba(255, 255, 255, 0.9); font-size: 13px; }
-        .average-line { stroke: rgba(156, 163, 175, 0.6); stroke-dasharray: 5, 5; }
+        .chart-title { 
+            font-size: 22px; 
+            font-weight: 600; 
+            fill: #fff;
+        }
+        
+        .win-loss-counter { 
+            fill: rgba(255, 255, 255, 0.85); 
+            font-size: 14px; 
+        }
+        
+        .x-axis text, .y-axis text { 
+            fill: rgba(255, 255, 255, 0.7); 
+            font-size: 11px; 
+        }
+        
+        .x-axis path, .y-axis path, .x-axis line, .y-axis line { 
+            stroke: rgba(255, 255, 255, 0.2); 
+        }
+        
+        .x-axis-label, .y-axis-label { 
+            fill: rgba(255, 255, 255, 0.85); 
+            font-size: 13px; 
+            font-weight: 500; 
+        }
+        
+        .line-path { 
+            stroke-width: 2;
+        }
+        
+        .data-point { 
+            cursor: pointer; 
+        }
+        
+        .tooltip rect { 
+            fill: rgba(20, 20, 40, 0.95); 
+            stroke: rgba(102, 126, 234, 0.5); 
+            stroke-width: 2; 
+        }
+        
+        .tooltip text { 
+            fill: #fff; 
+            font-size: 12px; 
+        }
+        
+        .legend text { 
+            fill: rgba(255, 255, 255, 0.9); 
+            font-size: 13px; 
+        }
+        
+        .average-line { 
+            stroke: rgba(156, 163, 175, 0.6); 
+            stroke-dasharray: 5, 5; 
+        }
 
         #correlation-panel {
             background: rgba(20, 20, 40, 0.95) !important;
             border: 1px solid rgba(102, 126, 234, 0.3) !important;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+            animation: slideIn 0.3s ease-out;
+            min-width: 350px;
+        }
+
+        #correlation-panel h3 {
+            color: #fff !important;
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+
+        #correlation-panel p {
+            color: rgba(255, 255, 255, 0.8) !important;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        #correlation-panel > div > div {
+            padding: 12px 0 !important;
+        }
+
+        #correlation-panel button {
+            margin-top: 20px !important;
         }
 
         .help-modal, .correlation-modal, #correlation-explanation-modal {
@@ -210,17 +313,50 @@
         }
 
         .help-modal > div, .correlation-modal > div, #correlation-explanation-modal > div {
-            background: rgba(20, 20, 40, 0.95) !important;
+            background: #1f1f1f !important;
             color: #fff !important;
-            border: 1px solid rgba(102, 126, 234, 0.3);
+            border: 1px solid #2f2f2f;
+            padding: 30px !important;
+            line-height: 1.6;
+        }
+
+        .help-modal h2,
+        .correlation-modal h2,
+        #correlation-explanation-modal h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #2f2f2f;
+        }
+
+        .help-modal h3,
+        .correlation-modal h3,
+        #correlation-explanation-modal h3 {
+            margin-top: 25px;
+            margin-bottom: 15px;
+            color: rgba(255, 255, 255, 0.95);
+        }
+
+        .help-modal p,
+        .correlation-modal p,
+        #correlation-explanation-modal p {
+            margin-bottom: 15px;
+            line-height: 1.7;
         }
 
         .help-modal ul,
         .correlation-modal ul,
         #correlation-explanation-modal ul {
-            padding-left: 20px;
+            padding-left: 25px;
+            margin-bottom: 20px;
         }
 
+        .help-modal li,
+        .correlation-modal li,
+        #correlation-explanation-modal li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
 
         #correlation-panel text {
             fill: #ffffff !important;
@@ -230,24 +366,74 @@
             fill: rgba(255, 255, 255, 0.85) !important;
         }
 
+        /* Loading state */
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.2rem;
+        }
 
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
 
-
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
 
         @media (max-width: 768px) {
-            h1 { font-size: 2rem; }
-            #controls { flex-direction: column; }
-            .control-group { width: 100%; min-width: unset; }
+            h1 { font-size: 1.8rem; }
+            .subtitle { font-size: 0.85rem; }
+            
+            #controls { 
+                flex-direction: column; 
+                align-items: stretch;
+            }
+            
+            .control-group { 
+                width: 100%; 
+                min-width: unset; 
+            }
+            
+            .stats-summary {
+                flex-direction: column;
+            }
+            
+            .stat-card {
+                min-width: unset;
+            }
+            
+            .chart-container {
+                padding: 15px;
+            }
         }
     </style>
 </head>
 <body>
+    <header>
+        <h1>🎮 COD Stats Dashboard</h1>
+    </header>
+
     <div class="container">
-        <header>
-            <h1>🎮 COD Stats Dashboard</h1>
-            <p class="subtitle">Track your performance and dominate the battlefield</p>
-        </header>
+        <!-- Stats summary cards will be inserted here by JavaScript -->
+        <div class="stats-summary" id="statsSummary">
+            <!-- Populated dynamically -->
+        </div>
         
+        <!-- Controls section -->
+        <div id="controls">
+            <!-- Populated by script.js -->
+        </div>
+        
+        <!-- Chart container -->
+        <div class="chart-container">
+            <div class="loading">Loading your stats</div>
+            <!-- SVG will be inserted here -->
+        </div>
     </div>
 
     <script src="script.js"></script>

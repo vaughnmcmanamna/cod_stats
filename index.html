@@ -2,440 +2,205 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>COD Stats Tracker</title>
-    <script src="d3.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #191919;
-            min-height: 100vh;
-            color: #fff;
-            padding: 0;
-            position: relative;
-            overflow-x: hidden;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #191919;
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            position: relative;
-            z-index: 1;
-            padding: 0 20px;
-        }
-
-        header {
-            text-align: center;
-            padding: 20px 20px 15px 20px;
-            background: #1f1f1f;
-            border-bottom: 1px solid #2f2f2f;
-            box-shadow: none;
-            margin-bottom: 30px;
-            position: relative;
-            z-index: 100;
-        }
-
-        h1 {
-            font-size: 2.2rem;
-            font-weight: 700;
-            color: #ffffff;
-            margin-bottom: 5px;
-            letter-spacing: -0.5px;
-        }
-
-        .subtitle {
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 0.95rem;
-            font-weight: 300;
-        }
-
-        /* Stats summary cards */
-        .stats-summary {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-        }
-
-        .stat-card {
-            background: #1f1f1f;
-            border: 1px solid #2f2f2f;
-            border-radius: 8px;
-            padding: 20px 30px;
-            min-width: 180px;
-            text-align: center;
-            box-shadow: none;
-        }
-
-        .stat-card:hover {
-            background: #242424;
-            border-color: #3f3f3f;
-        }
-
-        .stat-label {
-            font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.5);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #ffffff;
-        }
-
-        .stat-value.positive {
-            color: #37c593;
-        }
-
-        .stat-value.negative {
-            color: #eb5757;
-        }
-
-        /* Centered controls */
-        #controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin: 0 auto 30px auto;
-            padding: 25px;
-            background: #1f1f1f;
-            border-radius: 8px;
-            border: 1px solid #2f2f2f;
-            align-items: flex-end;
-            justify-content: center;
-            box-shadow: none;
-            max-width: fit-content;
-        }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            min-width: 180px;
-        }
-
-        .control-group label {
-            font-weight: 600;
-            font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.9);
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-        }
-
-        select, button {
-            padding: 12px 18px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            font-size: 14px;
-            background: rgba(255, 255, 255, 0.08);
-            color: #fff;
-            cursor: pointer;
-            backdrop-filter: blur(5px);
-            font-family: inherit;
-        }
-
-        select {
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            padding-right: 40px;
-        }
-
-        select:hover, button:hover {
-            background: #242424;
-            border-color: #3f3f3f;
-        }
-
-        select:focus, button:focus {
-            outline: none;
-            border-color: #37c593;
-        }
-
-        select option {
-            background-color: #1f1f1f;
-            color: #ffffff;
-        }
-
-        button {
-            font-weight: 600;
-            background: #37c593;
-            border: none;
-            white-space: nowrap;
-            min-width: 160px;
-            color: #000000;
-        }
-
-        button:hover {
-            background: #2fb380;
-        }
-
-        /* Chart container */
-        .chart-container {
-            background: #1f1f1f;
-            border-radius: 8px;
-            padding: 30px;
-            border: 1px solid #2f2f2f;
-            box-shadow: none;
-            max-width: fit-content;
-            margin: 0 auto;
-        }
-
-        svg {
-            display: block;
-            margin: 0 auto;
-            background: transparent;
-            border-radius: 12px;
-        }
-
-        .tooltip {
-            pointer-events: none;
-        }
-
-        .tooltip rect {
-            fill: #141428 !important;
-            opacity: 1 !important;
-        }
-
-        .tooltip text {
-            fill: #ffffff !important;
-            opacity: 1 !important;
-        }
-
-        .chart-title { 
-            font-size: 22px; 
-            font-weight: 600; 
-            fill: #fff;
-        }
-        
-        .win-loss-counter { 
-            fill: rgba(255, 255, 255, 0.85); 
-            font-size: 14px; 
-        }
-        
-        .x-axis text, .y-axis text { 
-            fill: rgba(255, 255, 255, 0.7); 
-            font-size: 11px; 
-        }
-        
-        .x-axis path, .y-axis path, .x-axis line, .y-axis line { 
-            stroke: rgba(255, 255, 255, 0.2); 
-        }
-        
-        .x-axis-label, .y-axis-label { 
-            fill: rgba(255, 255, 255, 0.85); 
-            font-size: 13px; 
-            font-weight: 500; 
-        }
-        
-        .line-path { 
-            stroke-width: 2;
-        }
-        
-        .data-point { 
-            cursor: pointer; 
-        }
-        
-        .tooltip rect { 
-            fill: rgba(20, 20, 40, 0.95); 
-            stroke: rgba(102, 126, 234, 0.5); 
-            stroke-width: 2; 
-        }
-        
-        .tooltip text { 
-            fill: #fff; 
-            font-size: 12px; 
-        }
-        
-        .legend text { 
-            fill: rgba(255, 255, 255, 0.9); 
-            font-size: 13px; 
-        }
-        
-        .average-line { 
-            stroke: rgba(156, 163, 175, 0.6); 
-            stroke-dasharray: 5, 5; 
-        }
-
-        #correlation-panel {
-            background: rgba(20, 20, 40, 0.95) !important;
-            border: 1px solid rgba(102, 126, 234, 0.3) !important;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
-            animation: slideIn 0.3s ease-out;
-            min-width: 350px;
-        }
-
-        #correlation-panel h3 {
-            color: #fff !important;
-            margin: 0 0 10px 0;
-            font-size: 18px;
-        }
-
-        #correlation-panel p {
-            color: rgba(255, 255, 255, 0.8) !important;
-            line-height: 1.6;
-            margin-bottom: 15px;
-        }
-
-        #correlation-panel > div > div {
-            padding: 12px 0 !important;
-        }
-
-        #correlation-panel button {
-            margin-top: 20px !important;
-        }
-
-        .help-modal, .correlation-modal, #correlation-explanation-modal {
-            backdrop-filter: blur(8px);
-        }
-
-        .help-modal > div, .correlation-modal > div, #correlation-explanation-modal > div {
-            background: #1f1f1f !important;
-            color: #fff !important;
-            border: 1px solid #2f2f2f;
-            padding: 30px !important;
-            line-height: 1.6;
-        }
-
-        .help-modal h2,
-        .correlation-modal h2,
-        #correlation-explanation-modal h2 {
-            margin-top: 0;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #2f2f2f;
-        }
-
-        .help-modal h3,
-        .correlation-modal h3,
-        #correlation-explanation-modal h3 {
-            margin-top: 25px;
-            margin-bottom: 15px;
-            color: rgba(255, 255, 255, 0.95);
-        }
-
-        .help-modal p,
-        .correlation-modal p,
-        #correlation-explanation-modal p {
-            margin-bottom: 15px;
-            line-height: 1.7;
-        }
-
-        .help-modal ul,
-        .correlation-modal ul,
-        #correlation-explanation-modal ul {
-            padding-left: 25px;
-            margin-bottom: 20px;
-        }
-
-        .help-modal li,
-        .correlation-modal li,
-        #correlation-explanation-modal li {
-            margin-bottom: 10px;
-            line-height: 1.6;
-        }
-
-        #correlation-panel text {
-            fill: #ffffff !important;
-        }
-
-        svg text {
-            fill: rgba(255, 255, 255, 0.85) !important;
-        }
-
-        /* Loading state */
-        .loading {
-            text-align: center;
-            padding: 60px;
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 1.2rem;
-        }
-
-        .loading::after {
-            content: '...';
-            animation: dots 1.5s infinite;
-        }
-
-        @keyframes dots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60%, 100% { content: '...'; }
-        }
-
-        @media (max-width: 768px) {
-            h1 { font-size: 1.8rem; }
-            .subtitle { font-size: 0.85rem; }
-            
-            #controls { 
-                flex-direction: column; 
-                align-items: stretch;
-            }
-            
-            .control-group { 
-                width: 100%; 
-                min-width: unset; 
-            }
-            
-            .stats-summary {
-                flex-direction: column;
-            }
-            
-            .stat-card {
-                min-width: unset;
-            }
-            
-            .chart-container {
-                padding: 15px;
-            }
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=0.8, minimum-scale=0.8, maximum-scale=2.0, user-scalable=yes">
+    <title>CoD Stats Analysis & Prediction</title>
+    
+    <!-- External Libraries -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <header>
-        <h1>🎮 COD Stats Dashboard</h1>
-    </header>
-
     <div class="container">
-        <!-- Stats summary cards will be inserted here by JavaScript -->
-        <div class="stats-summary" id="statsSummary">
-            <!-- Populated dynamically -->
+        <header>
+            <h1>CoD Stats Analysis</h1>
+            <p class="subtitle">Performance Analytics & Match Prediction</p>
+            <button onclick="loadSampleData()" style="margin-top: 10px; padding: 8px 16px; font-size: 0.85em; background: linear-gradient(135deg, #ec4899, #db2777);">
+                Load Sample Data (Test Mode)
+            </button>
+        </header>
+        
+        <!-- Tab Navigation -->
+        <div class="tab-container">
+            <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+            <button class="tab-btn" onclick="switchTab('correlations')">Correlations</button>
+            <button class="tab-btn" onclick="switchTab('prediction')">Match Predictor</button>
+            <button class="tab-btn" onclick="switchTab('model')">Model Analytics</button>
         </div>
         
-        <!-- Controls section -->
-        <div id="controls">
-            <!-- Populated by script.js -->
+        <!-- Overview Tab -->
+        <div id="overview-tab" class="tab-content active">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="overview-gamemode">Game Mode:</label>
+                    <select id="overview-gamemode" onchange="updateOverview()">
+                        <option value="all">All Game Modes</option>
+                        <option value="ranked">Ranked Only</option>
+                        <option value="Hardpoint">Hardpoint</option>
+                        <option value="Control">Control</option>
+                        <option value="Search and Destroy">Search and Destroy</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="overview-map">Map:</label>
+                    <select id="overview-map" onchange="updateOverview()">
+                        <option value="all">All Maps</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="overview-metric">Timeline Metric:</label>
+                    <select id="overview-metric" onchange="updateOverview()">
+                        <option value="Skill">Skill</option>
+                        <option value="K/D Ratio">K/D Ratio</option>
+                        <option value="EKIA/D Ratio">EKIA/D Ratio</option>
+                        <option value="Kills">Kills</option>
+                        <option value="Deaths">Deaths</option>
+                        <option value="Score">Score</option>
+                        <option value="Damage Done">Damage Done</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="stats-container" id="overview-stats">
+                <div class="loading">Loading stats</div>
+            </div>
+            
+            <div class="two-column-grid">
+                <div class="chart-section">
+                    <h2 class="chart-title">Performance Over Time</h2>
+                    <div id="overview-timeline-chart" class="chart-container"></div>
+                </div>
+                <div class="chart-section">
+                    <h2 class="chart-title">Win Rate by Map</h2>
+                    <div id="winrate-map-chart" class="chart-container"></div>
+                </div>
+            </div>
         </div>
         
-        <!-- Chart container -->
-        <div class="chart-container">
-            <div class="loading">Loading your stats</div>
-            <!-- SVG will be inserted here -->
+        <!-- Correlations Tab -->
+        <div id="correlations-tab" class="tab-content">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="corr-gamemode">Game Mode:</label>
+                    <select id="corr-gamemode" onchange="updateCorrelations()">
+                        <option value="all">All Game Modes</option>
+                        <option value="ranked">Ranked Only</option>
+                        <option value="Hardpoint">Hardpoint</option>
+                        <option value="Control">Control</option>
+                        <option value="Search and Destroy">Search and Destroy</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="corr-metric">Primary Metric:</label>
+                    <select id="corr-metric" onchange="updateCorrelations()">
+                        <option value="Match Outcome">Match Outcome (Win/Loss)</option>
+                        <option value="Skill">Skill</option>
+                        <option value="K/D Ratio">K/D Ratio</option>
+                        <option value="Score">Score</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="two-column-grid">
+                <div class="chart-section">
+                    <h2 class="chart-title">Correlation Matrix</h2>
+                    <div id="correlation-matrix" class="chart-container"></div>
+                </div>
+                <div class="chart-section">
+                    <h2 class="chart-title">Feature Importance</h2>
+                    <div id="correlation-bars" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Prediction Tab -->
+        <div id="prediction-tab" class="tab-content">
+            <div class="prediction-form">
+                <h2 class="chart-title">Predict Match Outcome</h2>
+                <p style="color: #a0a0a0; margin-bottom: 25px;">Enter your in-game stats to predict if you'll win or lose (Hardpoint only)</p>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="pred-kills">Kills</label>
+                        <input type="number" id="pred-kills" min="0" value="25" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="pred-deaths">Deaths</label>
+                        <input type="number" id="pred-deaths" min="0" value="20" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="pred-damage">Damage Done</label>
+                        <input type="number" id="pred-damage" min="0" value="5000" step="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="pred-assists">Assists</label>
+                        <input type="number" id="pred-assists" min="0" value="10" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="pred-score">Score</label>
+                        <input type="number" id="pred-score" min="0" value="3000" step="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="pred-skill">Skill</label>
+                        <input type="number" id="pred-skill" min="0" value="1000" step="10">
+                    </div>
+                    <div class="form-group">
+                        <label for="pred-moving">Time Moving (%)</label>
+                        <input type="number" id="pred-moving" min="0" max="100" value="75" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="pred-damage-taken">Damage Taken</label>
+                        <input type="number" id="pred-damage-taken" min="0" value="4000" step="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="pred-hits">Hits</label>
+                        <input type="number" id="pred-hits" min="0" value="200" step="10">
+                    </div>
+                    <div class="form-group">
+                        <label for="pred-shots">Shots</label>
+                        <input type="number" id="pred-shots" min="0" value="400" step="10">
+                    </div>
+                </div>
+                
+                <button onclick="predictMatch()" style="width: 100%; padding: 15px; font-size: 1.1em;">
+                    Predict Outcome
+                </button>
+                
+                <div id="prediction-output"></div>
+            </div>
+        </div>
+        
+        <!-- Model Analytics Tab -->
+        <div id="model-tab" class="tab-content">
+            <div class="model-info-grid" id="model-info">
+                <div class="loading">Loading model analytics</div>
+            </div>
+            
+            <div class="two-column-grid">
+                <div class="chart-section">
+                    <h2 class="chart-title">Confusion Matrix</h2>
+                    <div id="confusion-matrix" class="chart-container"></div>
+                </div>
+                <div class="chart-section">
+                    <h2 class="chart-title">Feature Importance</h2>
+                    <div id="feature-importance" class="chart-container"></div>
+                </div>
+            </div>
+            
+            <div class="chart-section">
+                <h2 class="chart-title">Model Accuracy by Tree Depth</h2>
+                <div id="depth-accuracy" class="chart-container"></div>
+            </div>
         </div>
     </div>
-
-    <script src="script.js"></script>
+    
+    <!-- Custom Scripts -->
+    <script src="config.js"></script>
+    <script src="data-loader.js"></script>
+    <script src="charts.js"></script>
+    <script src="prediction.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

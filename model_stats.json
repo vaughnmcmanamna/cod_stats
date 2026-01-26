@@ -1,0 +1,124 @@
+{
+  "model_info": {
+    "algorithm": "Decision Tree Classifier",
+    "accuracy": 0.7391304347826086,
+    "training_samples": 274,
+    "testing_samples": 69,
+    "tree_depth": 5,
+    "leaf_nodes": 23,
+    "total_samples": 343
+  },
+  "confusion_matrix": {
+    "true_negatives": 26,
+    "false_positives": 8,
+    "false_negatives": 10,
+    "true_positives": 25,
+    "matrix": [
+      [
+        26,
+        8
+      ],
+      [
+        10,
+        25
+      ]
+    ]
+  },
+  "classification_report": {
+    "loss": {
+      "precision": 0.7222222222222222,
+      "recall": 0.7647058823529411,
+      "f1_score": 0.7428571428571429,
+      "support": 34
+    },
+    "win": {
+      "precision": 0.7575757575757576,
+      "recall": 0.7142857142857143,
+      "f1_score": 0.7352941176470589,
+      "support": 35
+    },
+    "accuracy": 0.7391304347826086,
+    "macro_avg": {
+      "precision": 0.7398989898989898,
+      "recall": 0.7394957983193278,
+      "f1_score": 0.7390756302521009
+    },
+    "weighted_avg": {
+      "precision": 0.7401551749377837,
+      "recall": 0.7391304347826086,
+      "f1_score": 0.7390208257215931
+    }
+  },
+  "feature_importance": {
+    "features": [
+      {
+        "name": "Damage_Efficiency",
+        "importance": 0.38277140979869945
+      },
+      {
+        "name": "Accuracy",
+        "importance": 0.12299084030529245
+      },
+      {
+        "name": "Deaths",
+        "importance": 0.121239328676192
+      },
+      {
+        "name": "Percentage Of Time Moving",
+        "importance": 0.08680421126995203
+      },
+      {
+        "name": "Kills",
+        "importance": 0.08302709483717936
+      },
+      {
+        "name": "Skill",
+        "importance": 0.07607103739962202
+      },
+      {
+        "name": "Kill_Death_Ratio",
+        "importance": 0.06401341542312475
+      },
+      {
+        "name": "Damage Done",
+        "importance": 0.047593198118727
+      },
+      {
+        "name": "Score",
+        "importance": 0.015489464171210896
+      },
+      {
+        "name": "Assists",
+        "importance": 0.0
+      }
+    ],
+    "top_feature": "Damage_Efficiency",
+    "top_importance": 0.38277140979869945
+  },
+  "depth_analysis": {
+    "depths": [
+      1,
+      3,
+      5,
+      10,
+      15,
+      20
+    ],
+    "accuracies": [
+      0.6521739130434783,
+      0.6811594202898551,
+      0.7391304347826086,
+      0.6086956521739131,
+      0.6376811594202898,
+      0.6376811594202898
+    ],
+    "best_depth": 5,
+    "best_accuracy": 0.7391304347826086
+  },
+  "dataset_distribution": {
+    "train_wins": 139,
+    "train_losses": 135,
+    "test_wins": 35,
+    "test_losses": 34
+  }
+}
